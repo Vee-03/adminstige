@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import DashboardContent from './DashboardContent'
 import DestinationPage from './Destination'
+import UserManagement from './UserManagement'
 
 interface AdminDashboardProps {
   onLogout: () => void
@@ -48,6 +49,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           <div className="max-w-7xl mx-auto">
             {activeMenu === 'dashboard' && <DashboardContent />}
             {activeMenu === 'destination' && <DestinationPage />}
+            {activeMenu === 'users' && <UserManagement />}
           </div>
         </div>
       </div>
