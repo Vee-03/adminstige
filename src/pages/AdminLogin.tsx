@@ -23,14 +23,38 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
 
     setIsLoading(true)
     
-    setTimeout(() => {
-      if (email === 'admin@example.com' && password === 'password') {
+    try {
+      // Try real API first
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+      const response = await fetch(`${apiUrl}/admin/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Store token from API
+        localStorage.setItem('admin_token', data.data?.token || 'mock_token_' + Date.now())
         onLogin()
       } else {
         setError('Email atau password salah')
       }
+    } catch (err) {
+      // Fallback to mock login if API is not available
+      console.log('API tidak tersedia, menggunakan mock login')
+      if (email === 'admin@example.com' && password === 'password') {
+        // Store mock token for development
+        localStorage.setItem('admin_token', 'mock_token_' + Date.now())
+        onLogin()
+      } else {
+        setError('Email atau password salah')
+      }
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (

@@ -1,38 +1,22 @@
-import { useState } from 'react'
-import { Edit, Trash2, Plus, Search, MapPin, X, Image } from 'lucide-react'
-
-interface Destination {
-  id?: string
-  name: string
-  location: string
-  description: string
-  price: number
-  rating: number
-  categories: string[]
-  image_urls: string[]
-  owner_id: string
-}
+import { useState, useEffect } from 'react'
+import { Edit, Trash2, Plus, Search, MapPin, X, Image as ImageIcon, AlertCircle, Loader } from 'lucide-react'
+import { getDestinations, createDestination, updateDestination, deleteDestination } from '../utils/destinationAPI'
+import type { Destination as DestinationType } from '../utils/destinationAPI'
 
 export default function DestinationPage() {
-  const [destinations, setDestinations] = useState<Destination[]>([
-    {
-      id: '1',
-      name: 'Garut',
-      location: 'Indonesia',
-      description: 'Garut van java',
-      price: 100000,
-      rating: 4.9,
-      categories: ['Fun', 'Nature'],
-      image_urls: ['https://google.com'],
-      owner_id: '019a7722-3511-710b-9b3f-e77a2b5100b9',
-    },
-  ])
-
+  const [destinations, setDestinations] = useState<DestinationType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [filteredDestinations, setFilteredDestinations] = useState<DestinationType[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [editingId, setEditingId] = useState<string | undefined>()
-  const [searchTerm, setSearchTerm] = useState('')
-  const [formData, setFormData] = useState<Destination>({
+  const [editingUuid, setEditingUuid] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
+  
+  const [formData, setFormData] = useState<Omit<DestinationType, 'uuid' | 'created_at' | 'updated_at'>>({
     name: '',
     location: '',
     description: '',
@@ -42,8 +26,41 @@ export default function DestinationPage() {
     image_urls: [],
     owner_id: '019a7722-3511-710b-9b3f-e77a2b5100b9',
   })
+  
   const [newCategory, setNewCategory] = useState('')
   const [newImageUrl, setNewImageUrl] = useState('')
+
+  // Fetch destinations on mount
+  useEffect(() => {
+    const fetchDestinations = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await getDestinations()
+        const destinationList = response.data?.items || []
+        setDestinations(destinationList)
+        setFilteredDestinations(destinationList)
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Gagal mengambil data destinasi'
+        setError(errorMessage)
+        console.error('Fetch destinations error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDestinations()
+  }, [])
+
+  // Filter destinations on search
+  useEffect(() => {
+    const filtered = destinations.filter(
+      (dest) =>
+        dest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dest.location.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    setFilteredDestinations(filtered)
+  }, [searchTerm, destinations])
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -53,20 +70,24 @@ export default function DestinationPage() {
     }).format(value)
   }
 
-  const filteredDestinations = destinations.filter(
-    (dest) =>
-      dest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dest.location.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const handleOpenModal = (destination?: Destination) => {
+  const handleOpenModal = (destination?: DestinationType) => {
+    setSubmitError(null)
     if (destination) {
       setIsEditing(true)
-      setEditingId(destination.id)
-      setFormData(destination)
+      setEditingUuid(destination.uuid || null)
+      setFormData({
+        name: destination.name,
+        location: destination.location,
+        description: destination.description,
+        price: destination.price,
+        rating: destination.rating,
+        categories: destination.categories,
+        image_urls: destination.image_urls,
+        owner_id: destination.owner_id,
+      })
     } else {
       setIsEditing(false)
-      setEditingId(undefined)
+      setEditingUuid(null)
       setFormData({
         name: '',
         location: '',
@@ -85,6 +106,7 @@ export default function DestinationPage() {
     setShowModal(false)
     setNewCategory('')
     setNewImageUrl('')
+    setSubmitError(null)
   }
 
   const handleAddCategory = () => {
@@ -121,36 +143,59 @@ export default function DestinationPage() {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitError(null)
 
     if (!formData.name || !formData.location || !formData.description) {
-      alert('Silakan isi semua field yang wajib')
+      setSubmitError('Silakan isi semua field yang wajib')
       return
     }
 
-    if (isEditing && editingId) {
-      setDestinations(
-        destinations.map((dest) =>
-          dest.id === editingId ? { ...formData, id: editingId } : dest
+    try {
+      setSubmitting(true)
+      
+      if (isEditing && editingUuid) {
+        // Update existing destination
+        const updated = await updateDestination(editingUuid, formData)
+        setDestinations(
+          destinations.map((dest) =>
+            dest.uuid === editingUuid ? updated.data : dest
+          )
         )
-      )
-    } else {
-      setDestinations([
-        ...destinations,
-        {
-          ...formData,
-          id: Date.now().toString(),
-        },
-      ])
-    }
+      } else {
+        // Create new destination
+        const created = await createDestination(formData)
+        setDestinations([...destinations, created.data])
+      }
 
-    handleCloseModal()
+      handleCloseModal()
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Gagal menyimpan destinasi'
+      setSubmitError(errorMessage)
+      console.error('Submit error:', err)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const handleDelete = (id: string | undefined) => {
-    if (confirm('Apakah Anda yakin ingin menghapus destination ini?')) {
-      setDestinations(destinations.filter((dest) => dest.id !== id))
+  const handleDelete = async (uuid: string | undefined) => {
+    if (!uuid) return
+    
+    if (!confirm('Apakah Anda yakin ingin menghapus destination ini?')) {
+      return
+    }
+
+    try {
+      setDeleteLoading(uuid)
+      await deleteDestination(uuid)
+      setDestinations(destinations.filter((dest) => dest.uuid !== uuid))
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Gagal menghapus destinasi'
+      setError(errorMessage)
+      console.error('Delete error:', err)
+    } finally {
+      setDeleteLoading(null)
     }
   }
 
@@ -161,6 +206,17 @@ export default function DestinationPage() {
         <h2 className="text-4xl font-bold text-gray-900 mb-2">Destinations</h2>
         <p className="text-gray-600">Manage your tour destinations</p>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+          <div>
+            <p className="text-red-800 font-semibold">Error</p>
+            <p className="text-red-700 text-sm">{error}</p>
+          </div>
+        </div>
+      )}
 
       {/* Actions Bar */}
       <div className="flex flex-col md:flex-row gap-4 mb-8">
@@ -176,196 +232,214 @@ export default function DestinationPage() {
         </div>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition"
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition"
         >
           <Plus size={20} />
           Add Destination
         </button>
       </div>
 
-      {/* Destinations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredDestinations.map((destination) => (
-          <div
-            key={destination.id}
-            className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-          >
-            {/* Image */}
-            <div className="h-48 bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
-              {destination.image_urls && destination.image_urls.length > 0 ? (
-                <img src={destination.image_urls[0]} alt={destination.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <Image size={48} className="text-white opacity-60" />
-                  <span className="text-white text-sm opacity-60 font-medium">No Image</span>
-                </div>
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{destination.name}</h3>
-
-              <div className="flex items-center gap-2 mb-3 text-gray-600">
-                <MapPin size={18} className="text-orange-500" />
-                <span className="text-sm">{destination.location}</span>
-              </div>
-
-              <p className="text-gray-600 text-sm mb-4">{destination.description}</p>
-
-              {/* Categories */}
-              {destination.categories.length > 0 && (
-                <div className="mb-4">
-                  <div className="flex flex-wrap gap-2">
-                    {destination.categories.map((category, idx) => (
-                      <span key={idx} className="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">
-                        {category}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
-                <div>
-                  <p className="text-sm text-gray-500">Price</p>
-                  <p className="text-lg font-bold text-orange-600">{formatCurrency(destination.price)}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-500">Rating</p>
-                  <p className="text-lg font-bold text-yellow-500">{destination.rating}</p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleOpenModal(destination)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition font-semibold"
-                >
-                  <Edit size={18} />
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(destination.id)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition font-semibold"
-                >
-                  <Trash2 size={18} />
-                  Delete
-                </button>
-              </div>
-            </div>
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader className="animate-spin mx-auto mb-4 text-orange-500" size={32} />
+            <p className="text-gray-600">Loading destinations...</p>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {/* Empty State */}
-      {filteredDestinations.length === 0 && (
+      {!loading && filteredDestinations.length === 0 && (
         <div className="text-center py-12">
-          <MapPin size={56} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500 font-semibold">Tidak ada destination ditemukan</p>
+          <ImageIcon className="mx-auto mb-4 text-gray-400" size={48} />
+          <p className="text-gray-600 font-semibold mb-2">No destinations found</p>
+          <p className="text-gray-500 text-sm">
+            {searchTerm ? 'Try adjusting your search' : 'Create your first destination by clicking "Add Destination"'}
+          </p>
+        </div>
+      )}
+
+      {/* Destinations Grid */}
+      {!loading && filteredDestinations.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredDestinations.map((destination) => (
+            <div
+              key={destination.uuid}
+              className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              {/* Image */}
+              <div className="h-48 bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
+                {destination.image_urls && destination.image_urls.length > 0 ? (
+                  <img src={destination.image_urls[0]} alt={destination.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <ImageIcon size={48} className="text-white opacity-60" />
+                    <span className="text-white text-sm opacity-60 font-medium">No Image</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{destination.name}</h3>
+
+                <div className="flex items-center gap-2 mb-3 text-gray-600">
+                  <MapPin size={18} className="text-orange-500" />
+                  <span className="text-sm">{destination.location}</span>
+                </div>
+
+                <p className="text-gray-600 text-sm mb-4 line-clamp-2">{destination.description}</p>
+
+                {/* Categories */}
+                {destination.categories.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex flex-wrap gap-2">
+                      {destination.categories.map((category, idx) => (
+                        <span key={idx} className="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">
+                          {category}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                  <div>
+                    <p className="text-sm text-gray-500">Price</p>
+                    <p className="text-lg font-bold text-orange-600">{formatCurrency(destination.price)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">Rating</p>
+                    <p className="text-lg font-bold text-yellow-500">{destination.rating}</p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleOpenModal(destination)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition font-semibold"
+                  >
+                    <Edit size={18} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(destination.uuid)}
+                    disabled={deleteLoading === destination.uuid}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white rounded-lg transition font-semibold"
+                  >
+                    {deleteLoading === destination.uuid ? (
+                      <Loader size={18} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={18} />
+                    )}
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-6 flex items-center justify-between text-white">
-              <h3 className="text-2xl font-bold">{isEditing ? 'Edit Destination' : 'Add New Destination'}</h3>
-              <button onClick={handleCloseModal} className="hover:bg-white/20 p-2 rounded-lg transition">
+            <div className="sticky top-0 bg-gradient-to-r from-orange-500 to-orange-600 px-8 py-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-white">
+                {isEditing ? 'Edit Destination' : 'Add New Destination'}
+              </h3>
+              <button
+                onClick={handleCloseModal}
+                className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition"
+              >
                 <X size={24} />
               </button>
             </div>
 
-            {/* Modal Content */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* Name and Location */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Destination Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                    placeholder="e.g. Garut"
-                  />
+            {/* Modal Body */}
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              {submitError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                  <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                  <p className="text-red-700">{submitError}</p>
                 </div>
+              )}
+
+              {/* Basic Info */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Destination Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                  placeholder="e.g., Taman Nasional Bromo"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Location *
-                  </label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Location *</label>
                   <input
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                    placeholder="e.g. Indonesia"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                    placeholder="e.g., Jawa Timur"
                   />
                 </div>
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Description *
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 resize-none"
-                  rows={4}
-                  placeholder="Describe this destination..."
-                />
-              </div>
-
-              {/* Price and Rating */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Price (IDR)
-                  </label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Price (IDR)</label>
                   <input
                     type="number"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Rating (0-5)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.rating}
-                    onChange={(e) => setFormData({ ...formData, rating: Number(e.target.value) })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                    placeholder="4.5"
-                    min="0"
-                    max="5"
-                    step="0.1"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                    placeholder="100000"
                   />
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Description *</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                  placeholder="Describe this destination..."
+                  rows={4}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Rating</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="5"
+                  value={formData.rating}
+                  onChange={(e) => setFormData({ ...formData, rating: Number(e.target.value) })}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                  placeholder="4.5"
+                />
+              </div>
+
               {/* Categories */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Categories
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Categories</label>
                 <div className="flex gap-2 mb-3">
                   <input
                     type="text"
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
-                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                    placeholder="e.g. Nature"
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCategory())}
+                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                    placeholder="Add category..."
                   />
                   <button
                     type="button"
@@ -380,9 +454,9 @@ export default function DestinationPage() {
                     {formData.categories.map((category, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-800 text-sm font-semibold rounded-full"
+                        className="flex items-center gap-2 px-3 py-1 bg-orange-100 text-orange-800 rounded-full"
                       >
-                        {category}
+                        <span className="text-sm font-semibold">{category}</span>
                         <button
                           type="button"
                           onClick={() => handleRemoveCategory(idx)}
@@ -398,15 +472,14 @@ export default function DestinationPage() {
 
               {/* Image URLs */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Image URLs
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Image URLs</label>
                 <div className="flex gap-2 mb-3">
                   <input
                     type="url"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
-                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddImageUrl())}
+                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                     placeholder="https://example.com/image.jpg"
                   />
                   <button
@@ -420,15 +493,14 @@ export default function DestinationPage() {
                 {formData.image_urls.length > 0 && (
                   <div className="space-y-2">
                     {formData.image_urls.map((url, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-3 bg-gray-100 rounded-lg"
-                      >
-                        <span className="text-sm text-gray-700 truncate">{url}</span>
+                      <div key={idx} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex-1 truncate">
+                          <p className="text-sm text-gray-600 truncate">{url}</p>
+                        </div>
                         <button
                           type="button"
                           onClick={() => handleRemoveImageUrl(idx)}
-                          className="p-1 hover:bg-red-100 text-red-600 rounded transition"
+                          className="text-red-500 hover:text-red-700"
                         >
                           <X size={18} />
                         </button>
@@ -438,34 +510,31 @@ export default function DestinationPage() {
                 )}
               </div>
 
-              {/* Owner ID */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Owner ID
-                </label>
-                <input
-                  type="text"
-                  value={formData.owner_id}
-                  onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
-                  placeholder="Owner ID"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4">
+              {/* Form Actions */}
+              <div className="flex gap-4 pt-6 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition"
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition"
+                  disabled={submitting}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white rounded-lg font-semibold transition"
                 >
-                  {isEditing ? 'Update' : 'Create'} Destination
+                  {submitting ? (
+                    <>
+                      <Loader size={20} className="animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={20} />
+                      {isEditing ? 'Update Destination' : 'Create Destination'}
+                    </>
+                  )}
                 </button>
               </div>
             </form>
