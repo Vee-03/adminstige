@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar'
 import DashboardContent from './DashboardContent'
 import DestinationPage from './Destination'
 import UserManagement from './UserManagement'
+import Checkout from './Checkout'
 
 interface AdminDashboardProps {
   onLogout: () => void
@@ -50,6 +51,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             {activeMenu === 'dashboard' && <DashboardContent />}
             {activeMenu === 'destination' && <DestinationPage />}
             {activeMenu === 'users' && <UserManagement />}
+            {activeMenu === 'checkout' && <Checkout />}
+            
           </div>
         </div>
       </div>

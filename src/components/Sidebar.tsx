@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Menu, X, LayoutDashboard, MapPin, Users as UsersIcon, LogOut } from 'lucide-react'
+import { Menu, X, LayoutDashboard, MapPin, Users as UsersIcon, ShoppingCart, LogOut } from 'lucide-react'
 
 interface SidebarProps {
   activeMenu: string
@@ -14,6 +14,7 @@ export default function Sidebar({ activeMenu, onMenuChange, onLogout }: SidebarP
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'destination', label: 'Destination', icon: MapPin },
     { id: 'users', label: 'Users', icon: UsersIcon },
+    { id: 'checkout', label: 'Checkout', icon: ShoppingCart },
   ]
 
   const handleMenuClick = (menuId: string) => {
@@ -23,7 +24,6 @@ export default function Sidebar({ activeMenu, onMenuChange, onLogout }: SidebarP
 
   return (
     <>
-      {/* Mobile Menu Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-orange-500 text-white rounded-lg"
@@ -31,13 +31,11 @@ export default function Sidebar({ activeMenu, onMenuChange, onLogout }: SidebarP
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
-      {/* Sidebar */}
       <div
         className={`fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white shadow-2xl transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0 lg:relative lg:inset-auto z-40`}
       >
-        {/* Logo Section */}
         <div className="p-6 border-b border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center font-bold text-lg">
@@ -50,12 +48,10 @@ export default function Sidebar({ activeMenu, onMenuChange, onLogout }: SidebarP
           </div>
         </div>
 
-        {/* Menu Items */}
         <nav className="p-4 space-y-2 flex-1">
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive = activeMenu === item.id
-
             return (
               <button
                 key={item.id}
@@ -74,7 +70,6 @@ export default function Sidebar({ activeMenu, onMenuChange, onLogout }: SidebarP
           })}
         </nav>
 
-        {/* Logout Button */}
         <div className="p-4 border-t border-slate-700">
           <button
             onClick={onLogout}
@@ -86,12 +81,11 @@ export default function Sidebar({ activeMenu, onMenuChange, onLogout }: SidebarP
         </div>
       </div>
 
-      {/* Overlay for mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 lg:hidden z-30"
           onClick={() => setIsOpen(false)}
-        ></div>
+        />
       )}
     </>
   )
