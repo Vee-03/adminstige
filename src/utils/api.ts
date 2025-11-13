@@ -14,18 +14,34 @@ export const API_ENDPOINTS = {
   CREATE_DESTINATION: '/destinations',
   UPDATE_DESTINATION: (uuid: string) => `/destinations/${uuid}`,
   DELETE_DESTINATION: (uuid: string) => `/destinations/${uuid}`,
+<<<<<<< HEAD
 
   // Bookings endpoints
+=======
+  
+  // Bookings endpoints (must use /admin/bookings, not /bookings)
+>>>>>>> 78a50347b79f18adf325aa1cf4ffe89b0acd4642
   ADMIN_BOOKINGS: '/admin/bookings',
   BOOKING_DETAIL: (uuid: string) => `/admin/bookings/${uuid}`,
   CANCELLATIONS_PENDING: '/admin/bookings/cancellations/pending',
   APPROVE_CANCELLATION: (uuid: string) => `/admin/bookings/${uuid}/cancellation`,
   FORCE_CANCEL: (uuid: string) => `/admin/bookings/${uuid}/force-cancel`,
+<<<<<<< HEAD
 
   // Checkout endpoints
   ADMIN_CHECKOUTS: '/admin/checkouts',
   CHECKOUT_DETAIL: (uuid: string) => `/admin/checkouts/${uuid}`,
 } as const
+=======
+  
+  // Checkouts endpoints
+  ADMIN_CHECKOUTS: '/admin/checkouts',
+  CHECKOUT_DETAIL: (orderId: string) => `/admin/checkouts/${orderId}`,
+  
+  // Users endpoints
+  ADMIN_USERS: '/admin/users',
+}
+>>>>>>> 78a50347b79f18adf325aa1cf4ffe89b0acd4642
 
 // Common API Response Interface
 export interface ApiResponse<T> {
