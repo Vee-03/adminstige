@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Menu, X, LayoutDashboard, MapPin, Users as UsersIcon, ShoppingCart, LogOut } from 'lucide-react'
+import { Menu, X, LayoutDashboard, MapPin, Users as UsersIcon, ShoppingCart, LogOut, Building2 } from 'lucide-react'
 
 interface SidebarProps {
   activeMenu: string
@@ -14,6 +14,7 @@ export default function Sidebar({ activeMenu, onMenuChange, onLogout }: SidebarP
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'destination', label: 'Destination', icon: MapPin },
     { id: 'users', label: 'Users', icon: UsersIcon },
+    { id: 'partners', label: 'Partners', icon: Building2 },
     { id: 'checkout', label: 'Checkout', icon: ShoppingCart },
   ]
 
