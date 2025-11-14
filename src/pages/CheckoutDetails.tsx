@@ -144,27 +144,27 @@ export default function CheckoutDetails({ checkout, onBack }: Props) {
           </div>
 
           {/* Summary Box */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-xl">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <ShoppingBag size={18} />
+          <div className="bg-gradient-to-br from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200">
+            <h3 className="font-semibold mb-4 flex items-center gap-2 text-gray-900">
+              <ShoppingBag size={18} className="text-orange-600" />
               Ringkasan Transaksi
             </h3>
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between pb-3 border-b border-slate-700">
-                <span className="text-slate-300">Nama Pengguna</span>
-                <span className="font-semibold">{checkout.user_name}</span>
+              <div className="flex justify-between pb-3 border-b border-orange-200">
+                <span className="text-gray-600">Nama Pengguna</span>
+                <span className="font-semibold text-gray-900">{checkout.user_name}</span>
               </div>
-              <div className="flex justify-between pb-3 border-b border-slate-700">
-                <span className="text-slate-300">Tujuan</span>
-                <span className="font-semibold">{checkout.destination_name}</span>
+              <div className="flex justify-between pb-3 border-b border-orange-200">
+                <span className="text-gray-600">Tujuan</span>
+                <span className="font-semibold text-gray-900">{checkout.destination_name}</span>
               </div>
-              <div className="flex justify-between pb-3 border-b border-slate-700">
-                <span className="text-slate-300">Total Biaya</span>
-                <span className="font-semibold text-orange-400">Rp {checkout.total_price.toLocaleString('id-ID')}</span>
+              <div className="flex justify-between pb-3 border-b border-orange-200">
+                <span className="text-gray-600">Total Biaya</span>
+                <span className="font-semibold text-orange-600">Rp {checkout.total_price.toLocaleString('id-ID')}</span>
               </div>
               <div className="flex justify-between pt-3">
-                <span className="text-slate-300">Status</span>
-                <span className={`font-semibold ${checkout.status === 'paid' ? 'text-green-400' : 'text-red-400'}`}>
+                <span className="text-gray-600">Status</span>
+                <span className={`font-semibold ${checkout.status === 'paid' ? 'text-green-600' : 'text-red-600'}`}>
                   {checkout.status === 'paid' ? '✓ Sudah Bayar' : '⏳ Belum Bayar'}
                 </span>
               </div>
