@@ -1,4 +1,10 @@
 import { useState, useEffect } from 'react'
+/*
+  Temporary: allow explicit any in this file during migration. We should replace
+  these with proper types or move normalization into API helpers later.
+*/
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useQuery } from '@tanstack/react-query'
 import { Edit, Trash2, Plus, Search, MapPin, X, Image as ImageIcon, AlertCircle, Loader } from 'lucide-react'
 import { getDestinations, createDestination, updateDestination, deleteDestination } from '../utils/destinationAPI'
 import type { Destination as DestinationType } from '../utils/destinationAPI'
@@ -31,27 +37,26 @@ export default function DestinationPage() {
   const [newCategory, setNewCategory] = useState('')
   const [newImageUrl, setNewImageUrl] = useState('')
 
-  // Fetch destinations on mount
-  useEffect(() => {
-    const fetchDestinations = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const response = await getDestinations()
-        const destinationList = response.data?.items || []
-        setDestinations(destinationList)
-        setFilteredDestinations(destinationList)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Gagal mengambil data destinasi'
-        setError(errorMessage)
-        console.error('Fetch destinations error:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
+  // Use React Query to fetch destinations and cache them
+  const { data: dq, isLoading: qLoading, error: qError, refetch } = useQuery<DestinationType[], Error>({
+    queryKey: ['destinations', { perPage: 100 }],
+    queryFn: () => getDestinations(1, 100).then((r) => r.data.items || []),
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  })
 
-    fetchDestinations()
-  }, [])
+  useEffect(() => {
+    if (dq) {
+      setDestinations(dq as DestinationType[])
+      setFilteredDestinations(dq as DestinationType[])
+    }
+    setLoading(qLoading)
+    if (qError) {
+      const errorMessage = (qError as any)?.message || 'Gagal mengambil data destinasi'
+      setError(errorMessage)
+      console.error('Fetch destinations error:', qError)
+    }
+  }, [dq, qLoading, qError])
 
   // Filter destinations on search
   useEffect(() => {
@@ -231,13 +236,23 @@ export default function DestinationPage() {
             className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
           />
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition"
-        >
-          <Plus size={20} />
-          Add Destination
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => refetch()}
+            disabled={loading}
+            className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            Refresh
+          </button>
+
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition"
+          >
+            <Plus size={20} />
+            Add Destination
+          </button>
+        </div>
       </div>
 
       {/* Loading State */}
