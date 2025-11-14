@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ComponentType } from 'react'
 import { DollarSign, Ticket, Users, MapPin, ChevronRight, Inbox } from 'lucide-react'
 import { getAdminDashboard } from '../utils/api'
 import type { DashboardStats, RecentTransaction } from '../utils/api'
@@ -15,6 +16,7 @@ import {
   Legend,
   Filler,
 } from 'chart.js'
+import type { ChartOptions } from 'chart.js'
 import { Line } from 'react-chartjs-2'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
@@ -92,14 +94,22 @@ export default function DashboardContent() {
       ],
     }
 
-    const options = {
+    const options: ChartOptions<'line'> = {
       responsive: true,
       plugins: {
         legend: { display: false },
         title: { display: true, text: 'Revenue (last 7 days)' },
       },
       scales: {
-        y: { ticks: { callback: (val: any) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(val)) } },
+        y: {
+          ticks: {
+            callback: (val: unknown) => {
+              // val can be number|string depending on chart internals; coerce safely
+              const n = Number(String(val ?? 0))
+              return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n)
+            },
+          },
+        },
       },
     }
 
@@ -108,7 +118,14 @@ export default function DashboardContent() {
 
   // Payment badge not available from dashboard endpoint; transactions show basic info
 
-  const StatCard = ({ title, value, icon: Icon, gradient }: any) => (
+  type StatCardProps = {
+    title: string
+    value: string | number
+    icon: ComponentType<{ size?: number; className?: string }>
+    gradient?: string
+  }
+
+  const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, gradient = '' }) => (
     <div className={`${gradient} rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-all duration-300 transform hover:scale-105`}>
       <div className="flex items-center justify-between">
         <div>
@@ -168,7 +185,7 @@ export default function DashboardContent() {
       {/* Revenue Chart */}
       <div className="mb-8">
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 p-6">
-          <Line data={revenueChart.data} options={revenueChart.options as any} />
+          <Line data={revenueChart.data} options={revenueChart.options} />
         </div>
       </div>
 

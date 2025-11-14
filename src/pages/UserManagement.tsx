@@ -1,4 +1,10 @@
 import { useEffect, useState } from 'react'
+/*
+  Temporary: allow explicit any in this file while using fallback helpers.
+  Plan: centralize normalization in API helpers and remove this directive.
+*/
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useQuery } from '@tanstack/react-query'
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
@@ -113,47 +119,44 @@ export default function UserManagement() {
 
   const perPage = 5
 
+  // Use React Query to fetch users with pagination and filters
+  const { data: uq, isLoading: qLoading, error: qError, refetch } = useQuery({
+    queryKey: ['adminUsers', { page: currentPage, perPage, search: searchTerm, role: roleFilter }],
+    queryFn: () => getUsersWithFallback(currentPage, perPage, searchTerm || undefined, roleFilter || undefined),
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  })
+
   useEffect(() => {
-    loadUsers()
-  }, [currentPage, searchTerm, roleFilter])
+    const response = uq as any
+    if (response?.data) {
+      const normalizeUser = (u: any) => ({
+        id: u.id,
+        name: u.name || u.full_name || u.username || 'Unknown',
+        email: u.email || u.email_address || (u.contact && u.contact.email) || '',
+        status: u.status,
+        email_verified_at: u.email_verified_at,
+        created_at: u.created_at,
+        updated_at: u.updated_at,
+      }) as User
 
-  const loadUsers = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const response = await getUsersWithFallback(currentPage, perPage, searchTerm || undefined, roleFilter || undefined)
-
-      if (response.data) {
-        // Normalize user objects to ensure `email` is available under common keys
-        const normalizeUser = (u: any) => ({
-          id: u.id,
-          name: u.name || u.full_name || u.username || 'Unknown',
-          email: u.email || u.email_address || (u.contact && u.contact.email) || '',
-          status: u.status,
-          email_verified_at: u.email_verified_at,
-          created_at: u.created_at,
-          updated_at: u.updated_at,
-        }) as User
-
-        const items = (response.data.items || []).map(normalizeUser)
-        // If email is missing on many items, log once to help debugging
-        const missingEmailCount = items.filter((x) => !x.email).length
-        if (missingEmailCount > 0) {
-          console.info(`[UserManagement] ${missingEmailCount}/${items.length} users missing email (expected for some backends). Showing roles/bookings instead.`)
-        }
-
-        setUsers(items)
-        setTotalUsers(response.data.total)
-        setTotalPages(response.data.last_page)
+      const items: User[] = (response.data.items || []).map(normalizeUser)
+      const missingEmailCount = items.filter((x) => !x.email).length
+      if (missingEmailCount > 0) {
+        console.info(`[UserManagement] ${missingEmailCount}/${items.length} users missing email (expected for some backends). Showing roles/bookings instead.`)
       }
-    } catch (err) {
-      console.error('Failed to load users:', err)
-      setError('Failed to load users')
-    } finally {
-      setLoading(false)
+
+      setUsers(items)
+      setTotalUsers(response.data.total ?? 0)
+      setTotalPages(response.data.last_page ?? 1)
     }
-  }
+
+    setLoading(qLoading)
+    if (qError) {
+      console.error('Failed to load users:', qError)
+      setError((qError as any)?.message || 'Failed to load users')
+    }
+  }, [uq, qLoading, qError])
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value)
@@ -226,18 +229,28 @@ export default function UserManagement() {
           />
         </div>
 
-        <div className="mt-3 md:mt-0">
-          <label className="sr-only" htmlFor="roleFilter">Role</label>
-          <select
-            id="roleFilter"
-            value={roleFilter}
-            onChange={handleRoleChange}
-            className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm"
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => refetch()}
+            disabled={loading}
+            className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
           >
-            <option value="">All roles</option>
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-          </select>
+            Refresh
+          </button>
+
+          <div className="mt-3 md:mt-0">
+            <label className="sr-only" htmlFor="roleFilter">Role</label>
+            <select
+              id="roleFilter"
+              value={roleFilter}
+              onChange={handleRoleChange}
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm"
+            >
+              <option value="">All roles</option>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
         </div>
       </div>
 

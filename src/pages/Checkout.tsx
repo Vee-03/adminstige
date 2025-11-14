@@ -1,76 +1,74 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Eye, Search } from 'lucide-react'
 import CheckoutDetails from './CheckoutDetails'
 import { getAdminCheckouts } from '../utils/api'
 import type { CheckoutItem } from '../types/checkout'
+import { useQuery } from '@tanstack/react-query'
+
+/*
+  Allow some `any` usages in this file for rapid normalization handling.
+  These are guarded at runtime and will be cleaned up later by moving
+  normalization into typed API helpers.
+*/
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function Checkout() {
-  const [checkouts, setCheckouts] = useState<CheckoutItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Local mirroring replaced by using React Query's data/loading/error directly
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCheckout, setSelectedCheckout] = useState<CheckoutItem | null>(null)
-  const pollingRef = useRef<number | null>(null)
+  // pollingRef removed (unused) after migrating to React Query
+  // Normalization helper: fetch from API and normalize to UI CheckoutItem shape
+  const fetchAndNormalize = useCallback(async () => {
+    const res = await getAdminCheckouts({ page: 1, perPage: 100 })
+    const items = (res?.data?.items || []) as any[]
+    const mapped: CheckoutItem[] = items.map((it) => {
+      const anyIt = it as any
+      // Try to read total_price directly, otherwise compute from bookings (quantity * destination.price)
+      const directPrice = anyIt.total_price
+      let total = Number(directPrice)
+      if (!Number.isFinite(total) || total === 0) {
+        const bookings = Array.isArray(anyIt.bookings) ? anyIt.bookings : []
+        total = bookings.reduce((sum: number, b: any) => {
+          const price = Number(b?.destination?.price ?? b?.price ?? 0)
+          const qty = Number(b?.quantity ?? 1)
+          return sum + (Number.isFinite(price) ? price * (Number.isFinite(qty) ? qty : 1) : 0)
+        }, 0)
+      }
 
-  const fetchCheckouts = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await getAdminCheckouts({ page: 1, perPage: 100 })
-      const items = res.data.items || []
-      const mapped: CheckoutItem[] = items.map((it) => {
-        const anyIt = it as any
-        // Try to read total_price directly, otherwise compute from bookings (quantity * destination.price)
-        const directPrice = anyIt.total_price
-        let total = Number(directPrice)
-        if (!Number.isFinite(total) || total === 0) {
-          const bookings = Array.isArray(anyIt.bookings) ? anyIt.bookings : []
-          total = bookings.reduce((sum: number, b: any) => {
-            const price = Number(b?.destination?.price ?? b?.price ?? 0)
-            const qty = Number(b?.quantity ?? 1)
-            return sum + (Number.isFinite(price) ? price * (Number.isFinite(qty) ? qty : 1) : 0)
-          }, 0)
-        }
+      // user_name: prefer explicit user_name, then nested user.name
+      const userName = anyIt.user_name || anyIt.user?.name || anyIt.user?.full_name || ''
 
-        // user_name: prefer explicit user_name, then nested user.name
-        const userName = anyIt.user_name || anyIt.user?.name || anyIt.user?.full_name || ''
+      // destination_name: prefer explicit, otherwise the first booking's destination name
+      let destName = anyIt.destination_name || ''
+      if (!destName) {
+        const firstBooking = Array.isArray(anyIt.bookings) && anyIt.bookings.length > 0 ? anyIt.bookings[0] : null
+        destName = firstBooking?.destination?.name || firstBooking?.destination_name || ''
+      }
 
-        // destination_name: prefer explicit, otherwise the first booking's destination name
-        let destName = anyIt.destination_name || ''
-        if (!destName) {
-          const firstBooking = Array.isArray(anyIt.bookings) && anyIt.bookings.length > 0 ? anyIt.bookings[0] : null
-          destName = firstBooking?.destination?.name || firstBooking?.destination_name || ''
-        }
+      // payment_status is numeric (0/1) in the API sample: 1 -> paid
+      const status = (Number(anyIt.payment_status) === 1) ? 'paid' : 'unpaid'
 
-        // payment_status is numeric (0/1) in the API sample: 1 -> paid
-        const status = (Number(anyIt.payment_status) === 1) ? 'paid' : 'unpaid'
+      return {
+        id: it.uuid,
+        user_name: userName,
+        destination_name: destName,
+        total_price: Number.isFinite(total) ? total : 0,
+        status: status as 'paid' | 'unpaid',
+        created_at: it.created_at,
+      }
+    })
 
-        return {
-          id: it.uuid,
-          user_name: userName,
-          destination_name: destName,
-          total_price: Number.isFinite(total) ? total : 0,
-          status: status as 'paid' | 'unpaid',
-          created_at: it.created_at,
-        }
-      })
-      setCheckouts(mapped)
-    } catch (err: any) {
-      setError(err?.message || 'Gagal mengambil data checkout')
-    } finally {
-      setLoading(false)
-    }
+    return mapped
   }, [])
 
-  useEffect(() => {
-    fetchCheckouts()
-    pollingRef.current = window.setInterval(() => fetchCheckouts(), 10000)
-    return () => {
-      if (pollingRef.current) window.clearInterval(pollingRef.current)
-    }
-  }, [fetchCheckouts])
-
-  const filtered = checkouts.filter((c) => {
+  // Use React Query to fetch and cache the checkouts; keep polling disabled (manual refresh available)
+  const { data, isLoading: qLoading, error: qError, refetch } = useQuery({
+    queryKey: ['adminCheckouts', { page: 1, perPage: 100 }],
+    queryFn: fetchAndNormalize,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  })
+  const filtered = (data || []).filter((c) => {
     const term = searchTerm.toLowerCase()
     return (
       (c.user_name || '').toLowerCase().includes(term) ||
@@ -109,13 +107,22 @@ export default function Checkout() {
             className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500"
           />
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => refetch()}
+            disabled={qLoading}
+            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg disabled:opacity-50"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
-        {loading ? (
+        {qLoading ? (
           <div className="px-6 py-16 text-center text-gray-500 font-semibold">Memuat data checkout...</div>
-        ) : error ? (
-          <div className="px-6 py-16 text-center text-red-500 font-semibold">{error}</div>
+        ) : qError ? (
+          <div className="px-6 py-16 text-center text-red-500 font-semibold">{(qError as any)?.message || 'Gagal mengambil data checkout'}</div>
         ) : filtered.length > 0 ? (
           <table className="w-full">
             <thead>
