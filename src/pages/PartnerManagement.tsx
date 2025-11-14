@@ -562,99 +562,138 @@ export default function PartnerManagement() {
 
       {/* Create Partner Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
-            <form onSubmit={handleCreatePartner} className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold">Buat Mitra Baru</h3>
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Buat Mitra Baru</h2>
+                <p className="text-sm text-gray-600 mt-1">Tambahkan mitra bisnis baru ke sistem</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-600" />
+              </button>
+            </div>
+
+            {/* Form Content */}
+            <form onSubmit={handleCreatePartner} className="p-8 space-y-6">
+              {/* Section 1: Informasi Dasar */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <span className="text-purple-600 font-bold">1</span>
+                  </div>
+                  Informasi Dasar
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <input
+                    required
+                    value={createForm.name}
+                    onChange={(e) =>
+                      setCreateForm((s) => ({ ...s, name: e.target.value }))
+                    }
+                    placeholder="Nama Mitra / PIC"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <input
+                    required
+                    type="email"
+                    value={createForm.email}
+                    onChange={(e) =>
+                      setCreateForm((s) => ({ ...s, email: e.target.value }))
+                    }
+                    placeholder="Email"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Section 2: Keamanan */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <span className="text-purple-600 font-bold">2</span>
+                  </div>
+                  Keamanan Akun
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <input
+                    required
+                    type="password"
+                    value={createForm.password}
+                    onChange={(e) =>
+                      setCreateForm((s) => ({ ...s, password: e.target.value }))
+                    }
+                    placeholder="Password"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <input
+                    required
+                    type="password"
+                    value={createForm.password_confirmation}
+                    onChange={(e) =>
+                      setCreateForm((s) => ({
+                        ...s,
+                        password_confirmation: e.target.value,
+                      }))
+                    }
+                    placeholder="Ulangi Password"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Section 3: Kontak & Lokasi */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <span className="text-purple-600 font-bold">3</span>
+                  </div>
+                  Kontak & Lokasi
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <input
+                    type="text"
+                    value={createForm.phone_number}
+                    onChange={(e) =>
+                      setCreateForm((s) => ({
+                        ...s,
+                        phone_number: e.target.value,
+                      }))
+                    }
+                    placeholder="Nomor Telepon (opsional)"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <input
+                    type="text"
+                    value={createForm.location}
+                    onChange={(e) =>
+                      setCreateForm((s) => ({ ...s, location: e.target.value }))
+                    }
+                    placeholder="Lokasi (opsional)"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3">
-                <input
-                  required
-                  value={createForm.name}
-                  onChange={(e) =>
-                    setCreateForm((s) => ({ ...s, name: e.target.value }))
-                  }
-                  placeholder="Nama Mitra"
-                  className="w-full px-3 py-2 border rounded"
-                />
-                <input
-                  required
-                  type="email"
-                  value={createForm.email}
-                  onChange={(e) =>
-                    setCreateForm((s) => ({ ...s, email: e.target.value }))
-                  }
-                  placeholder="Email"
-                  className="w-full px-3 py-2 border rounded"
-                />
-                <input
-                  required
-                  type="password"
-                  value={createForm.password}
-                  onChange={(e) =>
-                    setCreateForm((s) => ({ ...s, password: e.target.value }))
-                  }
-                  placeholder="Password"
-                  className="w-full px-3 py-2 border rounded"
-                />
-                <input
-                  required
-                  type="password"
-                  value={createForm.password_confirmation}
-                  onChange={(e) =>
-                    setCreateForm((s) => ({
-                      ...s,
-                      password_confirmation: e.target.value,
-                    }))
-                  }
-                  placeholder="Ulangi Password"
-                  className="w-full px-3 py-2 border rounded"
-                />
-                <input
-                  type="text"
-                  value={createForm.phone_number}
-                  onChange={(e) =>
-                    setCreateForm((s) => ({
-                      ...s,
-                      phone_number: e.target.value,
-                    }))
-                  }
-                  placeholder="Nomor Telepon"
-                  className="w-full px-3 py-2 border rounded"
-                />
-                <input
-                  type="text"
-                  value={createForm.location}
-                  onChange={(e) =>
-                    setCreateForm((s) => ({ ...s, location: e.target.value }))
-                  }
-                  placeholder="Lokasi"
-                  className="w-full px-3 py-2 border rounded"
-                />
-              </div>
-
-              <div className="mt-4 flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 bg-gray-100 rounded"
+                  className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-purple-600 text-white rounded"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all shadow-md"
                 >
-                  Buat
+                  Buat Mitra
                 </button>
               </div>
             </form>
@@ -664,7 +703,7 @@ export default function PartnerManagement() {
 
       {/* Partner Detail Modal */}
       {showDetailModal && selectedPartnerDetail && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
