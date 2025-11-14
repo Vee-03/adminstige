@@ -9,39 +9,28 @@ export const API_ENDPOINTS = {
   ADMIN_LOGOUT: '/admin/logout',
 
   // Destinations endpoints
-  DESTINATIONS: '/destinations',
-  DESTINATION_DETAIL: (uuid: string) => `/destinations/${uuid}`,
-  CREATE_DESTINATION: '/destinations',
-  UPDATE_DESTINATION: (uuid: string) => `/destinations/${uuid}`,
-  DELETE_DESTINATION: (uuid: string) => `/destinations/${uuid}`,
-<<<<<<< HEAD
+  DESTINATIONS: '/admin/destinations',
+  DESTINATION_DETAIL: (uuid: string) => `/admin/destinations/${uuid}`,
+  CREATE_DESTINATION: '/admin/destinations',
+  UPDATE_DESTINATION: (uuid: string) => `/admin/destinations/${uuid}`,
+  DELETE_DESTINATION: (uuid: string) => `/admin/destinations/${uuid}`,
 
-  // Bookings endpoints
-=======
-  
   // Bookings endpoints (must use /admin/bookings, not /bookings)
->>>>>>> 78a50347b79f18adf325aa1cf4ffe89b0acd4642
   ADMIN_BOOKINGS: '/admin/bookings',
   BOOKING_DETAIL: (uuid: string) => `/admin/bookings/${uuid}`,
   CANCELLATIONS_PENDING: '/admin/bookings/cancellations/pending',
   APPROVE_CANCELLATION: (uuid: string) => `/admin/bookings/${uuid}/cancellation`,
   FORCE_CANCEL: (uuid: string) => `/admin/bookings/${uuid}/force-cancel`,
-<<<<<<< HEAD
 
-  // Checkout endpoints
-  ADMIN_CHECKOUTS: '/admin/checkouts',
-  CHECKOUT_DETAIL: (uuid: string) => `/admin/checkouts/${uuid}`,
-} as const
-=======
-  
   // Checkouts endpoints
   ADMIN_CHECKOUTS: '/admin/checkouts',
-  CHECKOUT_DETAIL: (orderId: string) => `/admin/checkouts/${orderId}`,
-  
+  CHECKOUT_DETAIL: (uuid: string) => `/admin/checkouts/${uuid}`,
+
   // Users endpoints
   ADMIN_USERS: '/admin/users',
-}
->>>>>>> 78a50347b79f18adf325aa1cf4ffe89b0acd4642
+  // Admin dashboard
+  ADMIN_DASHBOARD: '/admin/dashboard',
+} as const
 
 // Common API Response Interface
 export interface ApiResponse<T> {
@@ -191,11 +180,79 @@ export interface CheckoutItem {
 
 export interface GetCheckoutsResponse {
   items: CheckoutItem[]
-  meta?: {  
+  meta?: {
     page?: number
     per_page?: number
     total?: number
   }
+}
+
+// -----------------------
+// Admin Dashboard API
+// -----------------------
+
+export interface RevenueStats {
+  total: number
+  period_days: number
+  growth_percentage: number
+  transactions_count: number
+}
+
+export interface BookingsStats {
+  total: number
+  paid: number
+  unpaid: number
+  pending_cancellations: number
+}
+
+export interface UsersStats {
+  total: number
+  new_users: number
+  admins: number
+  regular_users: number
+}
+
+export interface MostBookedDestination {
+  uuid: string
+  name: string
+  location: string
+  price: string
+  bookings_count: number
+}
+
+export interface DestinationsStats {
+  total: number
+  most_booked: MostBookedDestination[]
+}
+
+export interface CancellationsStats {
+  pending: number
+  approved: number
+  rejected: number
+}
+
+export interface RecentTransaction {
+  order_id: string
+  user: {
+    id: string
+    name: string
+    email?: string
+  }
+  total_amount: number
+  created_at: string
+}
+
+export interface DashboardStats {
+  revenue: RevenueStats
+  bookings: BookingsStats
+  users: UsersStats
+  destinations: DestinationsStats
+  cancellations: CancellationsStats
+  recent_transactions: RecentTransaction[]
+}
+
+export interface GetDashboardResponse {
+  stats: DashboardStats
 }
 
 // GET: /admin/checkouts
@@ -213,6 +270,11 @@ export async function getAdminCheckouts(params?: {
 
   const endpoint = `${API_ENDPOINTS.ADMIN_CHECKOUTS}${qs.toString() ? `?${qs.toString()}` : ''}`
   return apiCall<GetCheckoutsResponse>(endpoint, { method: 'GET' })
+}
+
+// GET: /admin/dashboard
+export async function getAdminDashboard(): Promise<ApiResponse<GetDashboardResponse>> {
+  return apiCall<GetDashboardResponse>(API_ENDPOINTS.ADMIN_DASHBOARD, { method: 'GET' })
 }
 
 // GET: /admin/checkouts/{uuid}

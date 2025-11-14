@@ -15,7 +15,7 @@ export default function DestinationPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
-  
+
   const [formData, setFormData] = useState<Omit<DestinationType, 'uuid' | 'created_at' | 'updated_at'>>({
     name: '',
     location: '',
@@ -24,9 +24,10 @@ export default function DestinationPage() {
     rating: 0,
     categories: [],
     image_urls: [],
-    owner_id: '019a7722-3511-710b-9b3f-e77a2b5100b9',
+    // Leave owner_id empty by default; backend may expect numeric owner id.
+    owner_id: '' as any,
   })
-  
+
   const [newCategory, setNewCategory] = useState('')
   const [newImageUrl, setNewImageUrl] = useState('')
 
@@ -154,7 +155,7 @@ export default function DestinationPage() {
 
     try {
       setSubmitting(true)
-      
+
       if (isEditing && editingUuid) {
         // Update existing destination
         const updated = await updateDestination(editingUuid, formData)
@@ -181,7 +182,7 @@ export default function DestinationPage() {
 
   const handleDelete = async (uuid: string | undefined) => {
     if (!uuid) return
-    
+
     if (!confirm('Apakah Anda yakin ingin menghapus destination ini?')) {
       return
     }
@@ -210,7 +211,7 @@ export default function DestinationPage() {
       {/* Error Alert */}
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+          <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={20} />
           <div>
             <p className="text-red-800 font-semibold">Error</p>
             <p className="text-red-700 text-sm">{error}</p>
@@ -269,7 +270,7 @@ export default function DestinationPage() {
               className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
               {/* Image */}
-              <div className="h-48 bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
+              <div className="h-48 bg-linear-to-br from-orange-400 to-orange-500 flex items-center justify-center">
                 {destination.image_urls && destination.image_urls.length > 0 ? (
                   <img src={destination.image_urls[0]} alt={destination.name} className="w-full h-full object-cover" />
                 ) : (
@@ -348,7 +349,7 @@ export default function DestinationPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-orange-500 to-orange-600 px-8 py-6 flex items-center justify-between">
+            <div className="sticky top-0 bg-linear-to-r from-orange-500 to-orange-600 px-8 py-6 flex items-center justify-between">
               <h3 className="text-2xl font-bold text-white">
                 {isEditing ? 'Edit Destination' : 'Add New Destination'}
               </h3>
@@ -364,7 +365,7 @@ export default function DestinationPage() {
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
               {submitError && (
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-                  <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                  <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={20} />
                   <p className="text-red-700">{submitError}</p>
                 </div>
               )}

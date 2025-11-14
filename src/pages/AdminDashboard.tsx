@@ -37,7 +37,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   <p className="text-sm font-semibold text-gray-900">Admin User</p>
                   <p className="text-xs text-gray-500 font-medium">Logged in</p>
                 </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold">
+                <div className="w-10 h-10 bg-linear-to-br from-orange-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold">
                   AU
                 </div>
               </div>

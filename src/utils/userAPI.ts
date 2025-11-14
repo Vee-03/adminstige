@@ -5,10 +5,20 @@ import type { ApiResponse } from './api'
 export interface User {
   id: string | number
   name: string
+  status?: string
   email: string
   email_verified_at?: string | null
   created_at?: string
   updated_at?: string
+  // Optional admin fields returned by list/detail endpoints
+  roles?: Array<any>
+  permissions?: Array<any>
+  bookings_count?: number
+  checkouts_count?: number
+  deleted_at?: string | null
+  suspended_at?: string | null
+  suspension_reason?: string | null
+  suspended_by?: string | null
 }
 
 export interface UserListResponse {
@@ -28,6 +38,7 @@ export async function getUsers(
   page = 1,
   perPage = 5,
   search?: string,
+  role?: string,
   sortBy = 'created_at',
   sortOrder = 'desc'
 ): Promise<ApiResponse<UserListResponse>> {
@@ -35,6 +46,10 @@ export async function getUsers(
 
   if (search) {
     endpoint += `&search=${encodeURIComponent(search)}`
+  }
+
+  if (role) {
+    endpoint += `&role=${encodeURIComponent(role)}`
   }
 
   return apiCall(endpoint)
@@ -103,12 +118,18 @@ const mockUsers: User[] = [
 async function getMockUsers(
   page = 1,
   perPage = 5,
-  search?: string
+  search?: string,
+  role?: string
 ): Promise<ApiResponse<UserListResponse>> {
   // Simulate API delay
   await new Promise((resolve) => setTimeout(resolve, 300))
 
   let filtered = [...mockUsers]
+
+  // If role filter provided, simulate role filtering by accepting all mock users that have roles matching
+  if (role) {
+    filtered = filtered.filter((u: any) => Array.isArray((u as any).roles) ? (u as any).roles.some((r: any) => r.name === role) : role === 'user')
+  }
 
   // Apply search filter
   if (search) {
@@ -158,12 +179,13 @@ export async function getUsersWithFallback(
   page = 1,
   perPage = 5,
   search?: string,
+  role?: string,
   sortBy = 'created_at',
   sortOrder = 'desc'
 ): Promise<ApiResponse<UserListResponse>> {
   return tryApiWithMockFallback(
-    () => getUsers(page, perPage, search, sortBy, sortOrder),
-    () => getMockUsers(page, perPage, search),
+    () => getUsers(page, perPage, search, role, sortBy, sortOrder),
+    () => getMockUsers(page, perPage, search, role),
     isNetworkError
   )
 }
@@ -187,4 +209,38 @@ export async function getUserWithFallback(userId: string | number): Promise<ApiR
     }
     throw error
   }
+}
+
+// Update user status (suspend/activate)
+export async function updateUserStatus(
+  userId: string | number,
+  status: 'suspended' | 'active',
+  reason?: string
+): Promise<ApiResponse<{ user: User }>> {
+  const endpoint = `${API_ENDPOINTS.ADMIN_USERS}/${userId}/status`
+
+  return tryApiWithMockFallback(
+    () =>
+      apiCall(endpoint, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, reason }),
+      }),
+    async () => {
+      // mock fallback: update mockUsers
+      const idx = mockUsers.findIndex((u) => u.id === userId)
+      if (idx === -1) {
+        throw new Error('User not found (mock)')
+      }
+      const user = { ...mockUsers[idx] }
+        // Assign status field for mock
+        ; (user as any).status = status
+      mockUsers[idx] = user
+      return {
+        status: 200,
+        message: `User ${status} (mock)`,
+        data: { user },
+      }
+    },
+    isNetworkError
+  )
 }

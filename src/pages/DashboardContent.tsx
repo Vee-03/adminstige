@@ -1,16 +1,27 @@
-import { useEffect, useState } from 'react'
-import { DollarSign, Ticket, Users, MapPin, ChevronRight, CheckCircle, Clock, XCircle, Inbox } from 'lucide-react'
-import { getCheckoutsWithFallback } from '../utils/checkoutAPI'
-import type { Checkout } from '../utils/checkoutAPI'
+import { useEffect, useMemo, useState } from 'react'
+import { DollarSign, Ticket, Users, MapPin, ChevronRight, Inbox } from 'lucide-react'
+import { getAdminDashboard } from '../utils/api'
+import type { DashboardStats, RecentTransaction } from '../utils/api'
+
+// Chart.js + react-chartjs-2
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js'
+import { Line } from 'react-chartjs-2'
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
 export default function DashboardContent() {
-  const [checkouts, setCheckouts] = useState<Checkout[]>([])
-  const [stats, setStats] = useState({
-    total_revenue: 0,
-    total_bookings: 0,
-    total_users: 0,
-    total_destinations: 12,
-  })
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [recentTransactions, setRecentTransactions] = useState<RecentTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,34 +33,11 @@ export default function DashboardContent() {
     try {
       setLoading(true)
       setError(null)
-
-      // Get checkouts data
-      const response = await getCheckoutsWithFallback(1, 10)
-      
-      if (response.data && response.data.items) {
-        setCheckouts(response.data.items)
-
-        // Calculate stats from checkouts
-        let totalRevenue = 0
-        let totalBookings = 0
-
-        response.data.items.forEach((checkout) => {
-          if (checkout.bookings) {
-            totalBookings += checkout.bookings.length
-            checkout.bookings.forEach((booking) => {
-              if (booking.checkout_data) {
-                totalRevenue += Number(booking.checkout_data.total_amount || 0)
-              }
-            })
-          }
-        })
-
-        setStats({
-          total_revenue: totalRevenue,
-          total_bookings: totalBookings,
-          total_users: response.data.total,
-          total_destinations: 12,
-        })
+      // Get dashboard stats from admin endpoint
+      const response = await getAdminDashboard()
+      if (response?.data?.stats) {
+        setStats(response.data.stats)
+        setRecentTransactions(response.data.stats.recent_transactions || [])
       }
     } catch (err) {
       console.error('Failed to load dashboard data:', err)
@@ -68,32 +56,57 @@ export default function DashboardContent() {
     }).format(numValue || 0)
   }
 
-  const getPaymentStatusBadge = (status: number | string) => {
-    const statusNum = typeof status === 'string' ? parseInt(status) : status
-    
-    if (statusNum === 1) {
-      return (
-        <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 flex items-center gap-1.5 w-fit border border-green-200">
-          <CheckCircle size={14} />
-          Paid
-        </span>
-      )
-    } else if (statusNum === 0) {
-      return (
-        <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 flex items-center gap-1.5 w-fit border border-yellow-200">
-          <Clock size={14} />
-          Pending
-        </span>
-      )
-    } else {
-      return (
-        <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-red-100 text-red-800 flex items-center gap-1.5 w-fit border border-red-200">
-          <XCircle size={14} />
-          Cancelled
-        </span>
-      )
+  // Build a small revenue-by-day dataset from recentTransactions (last 7 days)
+  const revenueChart = useMemo(() => {
+    const days = 7
+    const labels: string[] = []
+    const totals: number[] = []
+    const now = new Date()
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now)
+      d.setDate(now.getDate() - i)
+      labels.push(d.toLocaleDateString('id-ID'))
+      totals.push(0)
     }
-  }
+
+    recentTransactions.forEach((tx) => {
+      const txDate = new Date(tx.created_at).toLocaleDateString('id-ID')
+      const idx = labels.indexOf(txDate)
+      if (idx >= 0) {
+        const amt = typeof tx.total_amount === 'string' ? parseFloat(tx.total_amount) : tx.total_amount
+        totals[idx] = (totals[idx] || 0) + (Number.isFinite(amt) ? amt : 0)
+      }
+    })
+
+    const data = {
+      labels,
+      datasets: [
+        {
+          label: 'Revenue (IDR)',
+          data: totals,
+          borderColor: '#f97316', // orange-500
+          backgroundColor: 'rgba(249,115,22,0.08)',
+          tension: 0.3,
+          fill: true,
+        },
+      ],
+    }
+
+    const options = {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: 'Revenue (last 7 days)' },
+      },
+      scales: {
+        y: { ticks: { callback: (val: any) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(val)) } },
+      },
+    }
+
+    return { data, options }
+  }, [recentTransactions])
+
+  // Payment badge not available from dashboard endpoint; transactions show basic info
 
   const StatCard = ({ title, value, icon: Icon, gradient }: any) => (
     <div className={`${gradient} rounded-2xl shadow-lg p-6 text-white hover:shadow-xl transition-all duration-300 transform hover:scale-105`}>
@@ -128,34 +141,41 @@ export default function DashboardContent() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="Total Revenue"
-          value={formatCurrency(stats.total_revenue)}
+          value={formatCurrency(stats?.revenue?.total ?? 0)}
           icon={DollarSign}
           gradient="bg-gradient-to-br from-orange-500 to-orange-600"
         />
         <StatCard
           title="Total Bookings"
-          value={stats.total_bookings}
+          value={stats?.bookings?.total ?? 0}
           icon={Ticket}
           gradient="bg-gradient-to-br from-blue-500 to-blue-600"
         />
         <StatCard
           title="Total Users"
-          value={stats.total_users}
+          value={stats?.users?.total ?? 0}
           icon={Users}
           gradient="bg-gradient-to-br from-purple-500 to-purple-600"
         />
         <StatCard
           title="Destinations"
-          value={stats.total_destinations}
+          value={stats?.destinations?.total ?? 0}
           icon={MapPin}
           gradient="bg-gradient-to-br from-green-500 to-green-600"
         />
       </div>
 
+      {/* Revenue Chart */}
+      <div className="mb-8">
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 p-6">
+          <Line data={revenueChart.data} options={revenueChart.options as any} />
+        </div>
+      </div>
+
       {/* Recent Checkouts Section */}
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
         {/* Header */}
-        <div className="px-6 lg:px-8 py-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
+        <div className="px-6 lg:px-8 py-6 border-b border-gray-200 flex items-center justify-between bg-linear-to-r from-gray-50 to-white">
           <div>
             <h3 className="text-xl font-bold text-gray-900">Recent Orders</h3>
             <p className="text-sm text-gray-500 mt-1 font-medium">Pesanan terbaru dari pelanggan</p>
@@ -177,52 +197,30 @@ export default function DashboardContent() {
               </div>
               <p className="text-gray-500 font-semibold mt-4">Loading data...</p>
             </div>
-          ) : checkouts && checkouts.length > 0 ? (
+          ) : recentTransactions && recentTransactions.length > 0 ? (
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Order ID
-                  </th>
-                  <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="hidden md:table-cell px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Items
-                  </th>
-                  <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Status
-                  </th>
+                  <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Order ID</th>
+                  <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>
+                  <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {checkouts.map((checkout) => (
-                  <tr key={checkout.uuid} className="hover:bg-gray-50 transition-colors duration-150">
+                {recentTransactions.map((tx) => (
+                  <tr key={tx.order_id} className="hover:bg-gray-50 transition-colors duration-150">
                     <td className="px-6 lg:px-8 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-3 py-1.5 rounded-lg">
-                        {checkout.order_id}
-                      </span>
+                      <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-3 py-1.5 rounded-lg">{tx.order_id}</span>
                     </td>
                     <td className="px-6 lg:px-8 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-700 font-medium">{checkout.user?.name || 'N/A'}</span>
-                    </td>
-                    <td className="hidden md:table-cell px-6 lg:px-8 py-4">
-                      <span className="text-sm text-gray-700">{checkout.bookings?.length || 0} item(s)</span>
+                      <span className="text-sm text-gray-700 font-medium">{tx.user?.name || 'N/A'}</span>
                     </td>
                     <td className="px-6 lg:px-8 py-4 whitespace-nowrap">
-                      <span className="text-sm font-bold text-orange-600">
-                        {checkout.bookings
-                          ? formatCurrency(
-                              checkout.bookings.reduce((sum, b) => sum + (Number(b.checkout_data?.total_amount) || 0), 0)
-                            )
-                          : '-'}
-                      </span>
+                      <span className="text-sm font-bold text-orange-600">{formatCurrency(tx.total_amount)}</span>
                     </td>
                     <td className="px-6 lg:px-8 py-4 whitespace-nowrap">
-                      {getPaymentStatusBadge(checkout.payment_status)}
+                      <span className="text-sm text-gray-500">{new Date(tx.created_at).toLocaleString()}</span>
                     </td>
                   </tr>
                 ))}

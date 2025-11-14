@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
-import { getUsersWithFallback } from '../utils/userAPI'
+import Swal from 'sweetalert2'
+import 'sweetalert2/dist/sweetalert2.min.css'
+import { getUsersWithFallback, updateUserStatus, getUserWithFallback } from '../utils/userAPI'
 import type { User } from '../utils/userAPI'
 
 export default function UserManagement() {
@@ -9,24 +11,139 @@ export default function UserManagement() {
   const [totalPages, setTotalPages] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
+  const [roleFilter, setRoleFilter] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Per-row action loading (show spinner on the button that's performing an action)
+  const [actionLoadingId, setActionLoadingId] = useState<string | number | null>(null)
+
+  // Use SweetAlert2 to show a confirmation / (optional) reason input for suspension
+  const handleSuspend = async (user: User) => {
+    const result = await Swal.fire({
+      title: `Suspend ${user.name}?`,
+      input: 'textarea',
+      inputLabel: 'Reason (optional)',
+      inputPlaceholder: 'Why are you suspending this user? (optional)',
+      showCancelButton: true,
+      confirmButtonText: 'Suspend',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+      reverseButtons: true,
+      preConfirm: (value: any) => value ?? '',
+    })
+
+    if (!result.isConfirmed) return
+
+    const reason = result.value || undefined
+    try {
+      setActionLoadingId(user.id)
+      const resp = await updateUserStatus(user.id, 'suspended', reason)
+      if (resp?.data?.user) {
+        setUsers((prev) => prev.map((u) => (u.id === user.id ? resp.data.user : u)))
+      }
+      await Swal.fire('Suspended', `${user.name} has been suspended.`, 'success')
+    } catch (err) {
+      console.error('Failed to suspend user', err)
+      setError(err instanceof Error ? err.message : 'Failed to suspend user')
+      Swal.fire('Error', err instanceof Error ? err.message : 'Failed to suspend user', 'error')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  const handleActivate = async (user: User) => {
+    const confirmed = await Swal.fire({
+      title: `Activate ${user.name}?`,
+      text: 'This will restore access for the user.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Activate',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#16a34a',
+    })
+
+    if (!confirmed.isConfirmed) return
+
+    try {
+      setActionLoadingId(user.id)
+      const resp = await updateUserStatus(user.id, 'active')
+      if (resp?.data?.user) {
+        setUsers((prev) => prev.map((u) => (u.id === user.id ? resp.data.user : u)))
+      }
+      await Swal.fire('Activated', `${user.name} is now active.`, 'success')
+    } catch (err) {
+      console.error('Failed to activate user', err)
+      setError(err instanceof Error ? err.message : 'Failed to activate user')
+      Swal.fire('Error', err instanceof Error ? err.message : 'Failed to activate user', 'error')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  const handleViewDetails = async (userId: string | number) => {
+    try {
+      setActionLoadingId(userId)
+      const resp = await getUserWithFallback(userId)
+      if (resp?.data?.user) {
+        const u = resp.data.user as any
+        const html = `
+          <div class="text-left">
+            <p><strong>Name:</strong> ${u.name || '—'}</p>
+            <p><strong>Status:</strong> ${u.status || '—'}</p>
+            <p><strong>Roles:</strong> ${(Array.isArray(u.roles) ? u.roles.map((r: any) => r.name).join(', ') : '—')}</p>
+            <p><strong>Bookings:</strong> ${u.bookings_count ?? '—'}</p>
+            <p><strong>Created:</strong> ${u.created_at ? new Date(u.created_at).toLocaleString() : '—'}</p>
+          </div>
+        `
+        await Swal.fire({
+          title: `User details: ${u.name || userId}`,
+          html,
+          width: '600px',
+        })
+      } else {
+        Swal.fire('Not found', 'User details not available', 'info')
+      }
+    } catch (err) {
+      console.error('Failed to fetch user details', err)
+      Swal.fire('Error', err instanceof Error ? err.message : 'Failed to fetch user details', 'error')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
 
   const perPage = 5
 
   useEffect(() => {
     loadUsers()
-  }, [currentPage, searchTerm])
+  }, [currentPage, searchTerm, roleFilter])
 
   const loadUsers = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const response = await getUsersWithFallback(currentPage, perPage, searchTerm || undefined)
+      const response = await getUsersWithFallback(currentPage, perPage, searchTerm || undefined, roleFilter || undefined)
 
       if (response.data) {
-        setUsers(response.data.items)
+        // Normalize user objects to ensure `email` is available under common keys
+        const normalizeUser = (u: any) => ({
+          id: u.id,
+          name: u.name || u.full_name || u.username || 'Unknown',
+          email: u.email || u.email_address || (u.contact && u.contact.email) || '',
+          status: u.status,
+          email_verified_at: u.email_verified_at,
+          created_at: u.created_at,
+          updated_at: u.updated_at,
+        }) as User
+
+        const items = (response.data.items || []).map(normalizeUser)
+        // If email is missing on many items, log once to help debugging
+        const missingEmailCount = items.filter((x) => !x.email).length
+        if (missingEmailCount > 0) {
+          console.info(`[UserManagement] ${missingEmailCount}/${items.length} users missing email (expected for some backends). Showing roles/bookings instead.`)
+        }
+
+        setUsers(items)
         setTotalUsers(response.data.total)
         setTotalPages(response.data.last_page)
       }
@@ -41,6 +158,11 @@ export default function UserManagement() {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value)
     setCurrentPage(1) // Reset to first page when searching
+  }
+
+  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setRoleFilter(e.target.value)
+    setCurrentPage(1)
   }
 
   const handleNextPage = () => {
@@ -91,9 +213,9 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="mb-6">
-        <div className="relative">
+      {/* Search Bar + Role Filter */}
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:gap-4">
+        <div className="relative flex-1">
           <Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
           <input
             type="text"
@@ -103,12 +225,26 @@ export default function UserManagement() {
             className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
           />
         </div>
+
+        <div className="mt-3 md:mt-0">
+          <label className="sr-only" htmlFor="roleFilter">Role</label>
+          <select
+            id="roleFilter"
+            value={roleFilter}
+            onChange={handleRoleChange}
+            className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm"
+          >
+            <option value="">All roles</option>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
       </div>
 
       {/* Users Table */}
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
         {/* Header */}
-        <div className="px-6 lg:px-8 py-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+        <div className="px-6 lg:px-8 py-6 border-b border-gray-200 bg-linear-to-r from-gray-50 to-white">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-gray-900">
               Users ({totalUsers} total)
@@ -138,6 +274,12 @@ export default function UserManagement() {
                   <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Email
                   </th>
+                  <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Actions
+                  </th>
                   <th className="hidden md:table-cell px-6 lg:px-8 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Joined Date
                   </th>
@@ -157,7 +299,63 @@ export default function UserManagement() {
                       </div>
                     </td>
                     <td className="px-6 lg:px-8 py-4">
-                      <span className="text-sm text-gray-700">{user.email}</span>
+                      {user.email ? (
+                        <span className="text-sm text-gray-700">{user.email}</span>
+                      ) : (
+                        <span className="text-sm text-gray-400 italic">No email</span>
+                      )}
+                    </td>
+                    <td className="px-6 lg:px-8 py-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${user.status === 'suspended' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                        {user.status || 'active'}
+                      </span>
+                    </td>
+                    <td className="px-6 lg:px-8 py-4">
+                      {user.status === 'suspended' ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleActivate(user)}
+                            className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2"
+                            disabled={actionLoadingId === user.id}
+                          >
+                            {actionLoadingId === user.id ? (
+                              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                              </svg>
+                            ) : null}
+                            <span>Activate</span>
+                          </button>
+                          <button
+                            onClick={() => handleViewDetails(user.id)}
+                            className="px-2 py-1 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                          >
+                            Details
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleSuspend(user)}
+                            className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2"
+                            disabled={actionLoadingId === user.id}
+                          >
+                            {actionLoadingId === user.id ? (
+                              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                              </svg>
+                            ) : null}
+                            <span>Suspend</span>
+                          </button>
+                          <button
+                            onClick={() => handleViewDetails(user.id)}
+                            className="px-2 py-1 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                          >
+                            Details
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="hidden md:table-cell px-6 lg:px-8 py-4">
                       <span className="text-sm text-gray-600">{formatDate(user.created_at)}</span>
@@ -179,7 +377,7 @@ export default function UserManagement() {
 
         {/* Pagination Footer */}
         {users.length > 0 && (
-          <div className="px-6 lg:px-8 py-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
+          <div className="px-6 lg:px-8 py-4 border-t border-gray-200 bg-linear-to-r from-gray-50 to-white flex items-center justify-between">
             <div className="text-sm text-gray-600">
               Showing {(currentPage - 1) * perPage + 1} to {Math.min(currentPage * perPage, totalUsers)} of {totalUsers} users
             </div>
@@ -202,11 +400,10 @@ export default function UserManagement() {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`w-10 h-10 rounded-lg font-medium transition-colors ${
-                        page === currentPage
-                          ? 'bg-orange-500 text-white'
-                          : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                      }`}
+                      className={`w-10 h-10 rounded-lg font-medium transition-colors ${page === currentPage
+                        ? 'bg-orange-500 text-white'
+                        : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       {page}
                     </button>

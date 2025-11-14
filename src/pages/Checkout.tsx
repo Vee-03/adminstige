@@ -18,14 +18,42 @@ export default function Checkout() {
     try {
       const res = await getAdminCheckouts({ page: 1, perPage: 100 })
       const items = res.data.items || []
-      const mapped: CheckoutItem[] = items.map((it) => ({
-        id: it.uuid,
-        user_name: it.user_name,
-        destination_name: it.destination_name,
-        total_price: it.total_price,
-        status: (it.payment_status as 'paid' | 'unpaid') || 'unpaid',
-        created_at: it.created_at,
-      }))
+      const mapped: CheckoutItem[] = items.map((it) => {
+        const anyIt = it as any
+        // Try to read total_price directly, otherwise compute from bookings (quantity * destination.price)
+        const directPrice = anyIt.total_price
+        let total = Number(directPrice)
+        if (!Number.isFinite(total) || total === 0) {
+          const bookings = Array.isArray(anyIt.bookings) ? anyIt.bookings : []
+          total = bookings.reduce((sum: number, b: any) => {
+            const price = Number(b?.destination?.price ?? b?.price ?? 0)
+            const qty = Number(b?.quantity ?? 1)
+            return sum + (Number.isFinite(price) ? price * (Number.isFinite(qty) ? qty : 1) : 0)
+          }, 0)
+        }
+
+        // user_name: prefer explicit user_name, then nested user.name
+        const userName = anyIt.user_name || anyIt.user?.name || anyIt.user?.full_name || ''
+
+        // destination_name: prefer explicit, otherwise the first booking's destination name
+        let destName = anyIt.destination_name || ''
+        if (!destName) {
+          const firstBooking = Array.isArray(anyIt.bookings) && anyIt.bookings.length > 0 ? anyIt.bookings[0] : null
+          destName = firstBooking?.destination?.name || firstBooking?.destination_name || ''
+        }
+
+        // payment_status is numeric (0/1) in the API sample: 1 -> paid
+        const status = (Number(anyIt.payment_status) === 1) ? 'paid' : 'unpaid'
+
+        return {
+          id: it.uuid,
+          user_name: userName,
+          destination_name: destName,
+          total_price: Number.isFinite(total) ? total : 0,
+          status: status as 'paid' | 'unpaid',
+          created_at: it.created_at,
+        }
+      })
       setCheckouts(mapped)
     } catch (err: any) {
       setError(err?.message || 'Gagal mengambil data checkout')
@@ -42,11 +70,13 @@ export default function Checkout() {
     }
   }, [fetchCheckouts])
 
-  const filtered = checkouts.filter(
-    (c) =>
-      c.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.destination_name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filtered = checkouts.filter((c) => {
+    const term = searchTerm.toLowerCase()
+    return (
+      (c.user_name || '').toLowerCase().includes(term) ||
+      (c.destination_name || '').toLowerCase().includes(term)
+    )
+  })
 
   const getStatusBadge = (status: 'paid' | 'unpaid') => {
     let className = ''

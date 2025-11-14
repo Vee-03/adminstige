@@ -1,17 +1,31 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AdminLogin from './pages/AdminLogin'
 import AdminDashboard from './pages/AdminDashboard'
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  // Initialize login state from localStorage so a saved token persists across refresh
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => !!localStorage.getItem('admin_token'))
 
   const handleLogin = () => {
     setIsLoggedIn(true)
   }
 
   const handleLogout = () => {
+    // Remove stored token when logging out
+    localStorage.removeItem('admin_token')
     setIsLoggedIn(false)
   }
+
+  // Keep state in sync if token is added/removed in another tab
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'admin_token') {
+        setIsLoggedIn(!!localStorage.getItem('admin_token'))
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   return (
     <>
