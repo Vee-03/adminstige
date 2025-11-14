@@ -276,7 +276,9 @@ export async function createUserWithFallback(
   return tryApiWithMockFallback(
     () => createUser(payload),
     async () => {
-      // mock create
+      // mock create - mimics backend behavior:
+      // - sets status to 'active', email_verified_at to now
+      // - creates personalData with phone_number and location if provided
       const now = new Date().toISOString();
       const id = "mock-user-" + Date.now();
       const user: any = {
@@ -284,7 +286,7 @@ export async function createUserWithFallback(
         name: payload.name,
         email: payload.email,
         status: "active",
-        email_verified_at: null,
+        email_verified_at: now,
         created_at: now,
         updated_at: now,
         deleted_at: null,
@@ -305,7 +307,11 @@ export async function createUserWithFallback(
             },
           },
         ],
-        personal_data: {
+      };
+
+      // Only create personalData if phone_number or location is provided
+      if (payload.phone_number || payload.location) {
+        user.personal_data = {
           uuid: "mock-personal-" + Date.now(),
           user_id: id,
           phone_number: payload.phone_number || null,
@@ -313,8 +319,8 @@ export async function createUserWithFallback(
           created_at: now,
           updated_at: now,
           deleted_at: null,
-        },
-      };
+        };
+      }
 
       return {
         status: 201,

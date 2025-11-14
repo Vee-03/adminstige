@@ -21,6 +21,26 @@ import {
   createUserWithFallback,
 } from "../utils/userAPI";
 
+// Defensive helper: try multiple common locations for phone numbers in API responses
+function extractPhone(raw: any): string | undefined {
+  if (!raw) return undefined;
+  // common top-level keys
+  if (raw.phone) return String(raw.phone);
+  if (raw.phone_number) return String(raw.phone_number);
+  // nested personal_data
+  if (raw.personal_data) {
+    if (raw.personal_data.phone_number)
+      return String(raw.personal_data.phone_number);
+    if (raw.personal_data.phone) return String(raw.personal_data.phone);
+  }
+  // meta/contact or profile shapes
+  if (raw.meta?.phone) return String(raw.meta.phone);
+  if (raw.meta?.contact?.phone) return String(raw.meta.contact.phone);
+  if (raw.profile?.phone) return String(raw.profile.phone);
+  if (raw.attributes?.phone) return String(raw.attributes.phone);
+  return undefined;
+}
+
 interface Partner {
   id: string | number;
   name: string;
@@ -58,7 +78,6 @@ export default function PartnerManagement() {
     name: "",
     email: "",
     password: "",
-    password_confirmation: "",
     phone_number: "",
     location: "",
   });
@@ -101,7 +120,6 @@ export default function PartnerManagement() {
         id: u.id,
         name: u.name || "",
         email: u.email || "",
-        phone: u.personal_data?.phone_number || u.phone || undefined,
         company_name:
           u.personal_data?.company_name || u.company_name || u.name || "",
         status: (u.status as any) || "active",
@@ -120,6 +138,37 @@ export default function PartnerManagement() {
       setPartners(mapped);
       setTotalPartners(uq.data.total ?? 0);
       setTotalPages(uq.data.last_page ?? 1);
+
+      // Fetch details for each partner to enrich phone/location data
+      // Use Promise.allSettled to prevent one failure from blocking others
+      const detailPromises = mapped.map((p) =>
+        getUserWithFallback(p.id).catch((err) => {
+          console.warn(`Failed to fetch details for partner ${p.id}:`, err);
+          return null;
+        })
+      );
+
+      Promise.allSettled(detailPromises).then((results) => {
+        const enriched = mapped.map((p, idx) => {
+          const result = results[idx];
+          if (result?.status === "fulfilled" && result.value?.data?.user) {
+            const detail = result.value.data.user as any;
+            return {
+              ...p,
+              phone: extractPhone(detail) || p.phone,
+              city:
+                detail.personal_data?.location ||
+                detail.personal_data?.city ||
+                p.city ||
+                "",
+              address: detail.personal_data?.address || p.address || "",
+              province: detail.personal_data?.province || p.province || "",
+            };
+          }
+          return p;
+        });
+        setPartners(enriched);
+      });
     }
 
     if (qError) console.error("Failed to load partners:", qError);
@@ -151,7 +200,7 @@ export default function PartnerManagement() {
           id: u.id,
           name: u.name || "",
           email: u.email || "",
-          phone: u.personal_data?.phone_number || u.phone || undefined,
+          phone: extractPhone(u),
           company_name:
             u.personal_data?.company_name || u.company_name || u.name || "",
           status: (u.status as any) || "suspended",
@@ -207,7 +256,7 @@ export default function PartnerManagement() {
           id: u.id,
           name: u.name || "",
           email: u.email || "",
-          phone: u.personal_data?.phone_number || u.phone || undefined,
+          phone: extractPhone(u),
           company_name:
             u.personal_data?.company_name || u.company_name || u.name || "",
           status: (u.status as any) || "active",
@@ -255,7 +304,7 @@ export default function PartnerManagement() {
         id: u.id,
         name: u.name || "",
         email: u.email || "",
-        phone: u.personal_data?.phone_number || u.phone || undefined,
+        phone: extractPhone(u),
         company_name:
           u.personal_data?.company_name || u.company_name || u.name || "",
         status: (u.status as any) || "active",
@@ -293,7 +342,6 @@ export default function PartnerManagement() {
         name: createForm.name,
         email: createForm.email,
         password: createForm.password,
-        password_confirmation: createForm.password_confirmation,
         role: "partner",
         phone_number: createForm.phone_number || undefined,
         location: createForm.location || undefined,
@@ -306,7 +354,6 @@ export default function PartnerManagement() {
           name: "",
           email: "",
           password: "",
-          password_confirmation: "",
           phone_number: "",
           location: "",
         });
@@ -436,9 +483,6 @@ export default function PartnerManagement() {
                     Email
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                    Kota
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
@@ -473,9 +517,6 @@ export default function PartnerManagement() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {partner.email}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {partner.city || "—"}
                     </td>
                     <td className="px-6 py-4">
                       <span
@@ -567,8 +608,12 @@ export default function PartnerManagement() {
             {/* Modal Header */}
             <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Buat Mitra Baru</h2>
-                <p className="text-sm text-gray-600 mt-1">Tambahkan mitra bisnis baru ke sistem</p>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Buat Mitra Baru
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Tambahkan mitra bisnis baru ke sistem
+                </p>
               </div>
               <button
                 type="button"
@@ -620,7 +665,7 @@ export default function PartnerManagement() {
                   </div>
                   Keamanan Akun
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
                   <input
                     required
                     type="password"
@@ -629,19 +674,6 @@ export default function PartnerManagement() {
                       setCreateForm((s) => ({ ...s, password: e.target.value }))
                     }
                     placeholder="Password"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                  <input
-                    required
-                    type="password"
-                    value={createForm.password_confirmation}
-                    onChange={(e) =>
-                      setCreateForm((s) => ({
-                        ...s,
-                        password_confirmation: e.target.value,
-                      }))
-                    }
-                    placeholder="Ulangi Password"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
