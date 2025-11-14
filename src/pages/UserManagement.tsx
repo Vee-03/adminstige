@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery } from '@tanstack/react-query'
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Mail, Calendar, Badge, User as UserIcon, X } from 'lucide-react'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import { getUsersWithFallback, updateUserStatus, getUserWithFallback } from '../utils/userAPI'
@@ -20,8 +20,9 @@ export default function UserManagement() {
   const [roleFilter, setRoleFilter] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Per-row action loading (show spinner on the button that's performing an action)
   const [actionLoadingId, setActionLoadingId] = useState<string | number | null>(null)
+  const [selectedUserDetail, setSelectedUserDetail] = useState<User | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
 
   // Use SweetAlert2 to show a confirmation / (optional) reason input for suspension
   const handleSuspend = async (user: User) => {
@@ -91,21 +92,8 @@ export default function UserManagement() {
       setActionLoadingId(userId)
       const resp = await getUserWithFallback(userId)
       if (resp?.data?.user) {
-        const u = resp.data.user as any
-        const html = `
-          <div class="text-left">
-            <p><strong>Name:</strong> ${u.name || '—'}</p>
-            <p><strong>Status:</strong> ${u.status || '—'}</p>
-            <p><strong>Roles:</strong> ${(Array.isArray(u.roles) ? u.roles.map((r: any) => r.name).join(', ') : '—')}</p>
-            <p><strong>Bookings:</strong> ${u.bookings_count ?? '—'}</p>
-            <p><strong>Created:</strong> ${u.created_at ? new Date(u.created_at).toLocaleString() : '—'}</p>
-          </div>
-        `
-        await Swal.fire({
-          title: `User details: ${u.name || userId}`,
-          html,
-          width: '600px',
-        })
+        setSelectedUserDetail(resp.data.user as User)
+        setShowDetailModal(true)
       } else {
         Swal.fire('Not found', 'User details not available', 'info')
       }
@@ -436,6 +424,172 @@ export default function UserManagement() {
           </div>
         )}
       </div>
+
+      {/* User Detail Modal */}
+      {showDetailModal && selectedUserDetail && (
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
+                  {selectedUserDetail.name?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{selectedUserDetail.name}</h2>
+                  <p className="text-sm text-gray-600">{selectedUserDetail.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-600" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Status Badge */}
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-semibold text-gray-700 w-24">Status:</span>
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  selectedUserDetail.status === 'active'
+                    ? 'bg-green-100 text-green-800'
+                    : selectedUserDetail.status === 'suspended'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {selectedUserDetail.status || 'Unknown'}
+                </span>
+              </div>
+
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-6">
+                {/* Name */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <UserIcon size={16} className="text-blue-500" />
+                    Nama
+                  </label>
+                  <p className="text-gray-900 font-medium">{selectedUserDetail.name}</p>
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <Mail size={16} className="text-blue-500" />
+                    Email
+                  </label>
+                  <p className="text-gray-900 font-medium break-all">{selectedUserDetail.email}</p>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-6">
+                {/* Created At */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <Calendar size={16} className="text-blue-500" />
+                    Dibuat
+                  </label>
+                  <p className="text-gray-900">
+                    {selectedUserDetail.created_at
+                      ? new Date(selectedUserDetail.created_at).toLocaleDateString('id-ID', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '—'}
+                  </p>
+                </div>
+
+                {/* Updated At */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <Calendar size={16} className="text-blue-500" />
+                    Diperbarui
+                  </label>
+                  <p className="text-gray-900">
+                    {selectedUserDetail.updated_at
+                      ? new Date(selectedUserDetail.updated_at).toLocaleDateString('id-ID', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '—'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Stats Section */}
+              {((selectedUserDetail as any).bookings_count !== undefined || (selectedUserDetail as any).checkouts_count !== undefined) && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Badge size={18} className="text-blue-600" />
+                    Statistik
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {(selectedUserDetail as any).bookings_count !== undefined && (
+                      <div className="bg-white p-3 rounded-lg border border-blue-200">
+                        <p className="text-xs text-gray-600 font-semibold uppercase">Total Booking</p>
+                        <p className="text-2xl font-bold text-blue-600">{(selectedUserDetail as any).bookings_count}</p>
+                      </div>
+                    )}
+                    {(selectedUserDetail as any).checkouts_count !== undefined && (
+                      <div className="bg-white p-3 rounded-lg border border-indigo-200">
+                        <p className="text-xs text-gray-600 font-semibold uppercase">Total Checkout</p>
+                        <p className="text-2xl font-bold text-indigo-600">{(selectedUserDetail as any).checkouts_count}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Roles Section */}
+              {Array.isArray((selectedUserDetail as any).roles) && (selectedUserDetail as any).roles.length > 0 && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Roles</label>
+                  <div className="flex flex-wrap gap-2">
+                    {(selectedUserDetail as any).roles.map((role: any, idx: number) => (
+                      <span
+                        key={idx}
+                        className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+                      >
+                        {role.name || role}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Email Verification Status */}
+              {selectedUserDetail.email_verified_at !== undefined && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className={`w-3 h-3 rounded-full ${selectedUserDetail.email_verified_at ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                  <span className="text-sm text-gray-700">
+                    Email {selectedUserDetail.email_verified_at ? 'Terverifikasi' : 'Belum Terverifikasi'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="flex-1 px-4 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

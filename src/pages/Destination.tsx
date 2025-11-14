@@ -26,8 +26,8 @@ export default function DestinationPage() {
     name: '',
     location: '',
     description: '',
-    price: 0,
-    rating: 0,
+    price: '' as any,
+    rating: '' as any,
     categories: [],
     image_urls: [],
     // Leave owner_id empty by default; backend may expect numeric owner id.
@@ -98,8 +98,8 @@ export default function DestinationPage() {
         name: '',
         location: '',
         description: '',
-        price: 0,
-        rating: 0,
+        price: '' as any,
+        rating: '' as any,
         categories: [],
         image_urls: [],
         owner_id: '019a7722-3511-710b-9b3f-e77a2b5100b9',
@@ -361,7 +361,7 @@ export default function DestinationPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="sticky top-0 bg-linear-to-r from-orange-500 to-orange-600 px-8 py-6 flex items-center justify-between">
@@ -411,9 +411,10 @@ export default function DestinationPage() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Price (IDR)</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, price: (e.target.value === '' ? '' : Number(e.target.value)) as any })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                     placeholder="100000"
                   />
@@ -432,17 +433,19 @@ export default function DestinationPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Rating</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="5"
-                  value={formData.rating}
-                  onChange={(e) => setFormData({ ...formData, rating: Number(e.target.value) })}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                  placeholder="4.5"
-                />
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Rating: {formData.rating || '0'}/5</label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={formData.rating || 0}
+                    onChange={(e) => setFormData({ ...formData, rating: Number(e.target.value) as any })}
+                    className="flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                  <span className="text-2xl font-bold text-orange-500 min-w-fit">{formData.rating || '0'}</span>
+                </div>
               </div>
 
               {/* Categories */}
