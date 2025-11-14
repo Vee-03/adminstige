@@ -40,7 +40,7 @@ export async function getUsers(
   search?: string,
   role?: string,
   sortBy = 'created_at',
-  sortOrder = 'desc'
+  sortOrder = 'desc',
 ): Promise<ApiResponse<UserListResponse>> {
   let endpoint = `${API_ENDPOINTS.ADMIN_USERS}?page=${page}&per_page=${perPage}&sort_by=${sortBy}&sort_order=${sortOrder}`
 

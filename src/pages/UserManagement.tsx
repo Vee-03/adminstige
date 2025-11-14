@@ -1,200 +1,266 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 /*
   Temporary: allow explicit any in this file while using fallback helpers.
   Plan: centralize normalization in API helpers and remove this directive.
 */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useQuery } from '@tanstack/react-query'
-import { Search, ChevronLeft, ChevronRight, Mail, Calendar, Badge, User as UserIcon, X } from 'lucide-react'
-import Swal from 'sweetalert2'
-import 'sweetalert2/dist/sweetalert2.min.css'
-import { getUsersWithFallback, updateUserStatus, getUserWithFallback } from '../utils/userAPI'
-import type { User } from '../utils/userAPI'
+import { useQuery } from "@tanstack/react-query";
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Mail,
+  Calendar,
+  Badge,
+  User as UserIcon,
+  X,
+} from "lucide-react";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
+import {
+  getUsersWithFallback,
+  updateUserStatus,
+  getUserWithFallback,
+} from "../utils/userAPI";
+import type { User } from "../utils/userAPI";
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>([])
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalUsers, setTotalUsers] = useState(0)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [roleFilter, setRoleFilter] = useState<string>('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [actionLoadingId, setActionLoadingId] = useState<string | number | null>(null)
-  const [selectedUserDetail, setSelectedUserDetail] = useState<User | null>(null)
-  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  // default to only show regular users in the admin UI
+  const [roleFilter, setRoleFilter] = useState<string>("user");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<
+    string | number | null
+  >(null);
+  const [selectedUserDetail, setSelectedUserDetail] = useState<User | null>(
+    null
+  );
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   // Use SweetAlert2 to show a confirmation / (optional) reason input for suspension
   const handleSuspend = async (user: User) => {
     const result = await Swal.fire({
       title: `Suspend ${user.name}?`,
-      input: 'textarea',
-      inputLabel: 'Reason (optional)',
-      inputPlaceholder: 'Why are you suspending this user? (optional)',
+      input: "textarea",
+      inputLabel: "Reason (optional)",
+      inputPlaceholder: "Why are you suspending this user? (optional)",
       showCancelButton: true,
-      confirmButtonText: 'Suspend',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#dc2626',
+      confirmButtonText: "Suspend",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#dc2626",
       reverseButtons: true,
-      preConfirm: (value: any) => value ?? '',
-    })
+      preConfirm: (value: any) => value ?? "",
+    });
 
-    if (!result.isConfirmed) return
+    if (!result.isConfirmed) return;
 
-    const reason = result.value || undefined
+    const reason = result.value || undefined;
     try {
-      setActionLoadingId(user.id)
-      const resp = await updateUserStatus(user.id, 'suspended', reason)
+      setActionLoadingId(user.id);
+      const resp = await updateUserStatus(user.id, "suspended", reason);
       if (resp?.data?.user) {
-        setUsers((prev) => prev.map((u) => (u.id === user.id ? resp.data.user : u)))
+        setUsers((prev) =>
+          prev.map((u) => (u.id === user.id ? resp.data.user : u))
+        );
       }
-      await Swal.fire('Suspended', `${user.name} has been suspended.`, 'success')
+      await Swal.fire(
+        "Suspended",
+        `${user.name} has been suspended.`,
+        "success"
+      );
     } catch (err) {
-      console.error('Failed to suspend user', err)
-      setError(err instanceof Error ? err.message : 'Failed to suspend user')
-      Swal.fire('Error', err instanceof Error ? err.message : 'Failed to suspend user', 'error')
+      console.error("Failed to suspend user", err);
+      setError(err instanceof Error ? err.message : "Failed to suspend user");
+      Swal.fire(
+        "Error",
+        err instanceof Error ? err.message : "Failed to suspend user",
+        "error"
+      );
     } finally {
-      setActionLoadingId(null)
+      setActionLoadingId(null);
     }
-  }
+  };
 
   const handleActivate = async (user: User) => {
     const confirmed = await Swal.fire({
       title: `Activate ${user.name}?`,
-      text: 'This will restore access for the user.',
-      icon: 'question',
+      text: "This will restore access for the user.",
+      icon: "question",
       showCancelButton: true,
-      confirmButtonText: 'Activate',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#16a34a',
-    })
+      confirmButtonText: "Activate",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#16a34a",
+    });
 
-    if (!confirmed.isConfirmed) return
+    if (!confirmed.isConfirmed) return;
 
     try {
-      setActionLoadingId(user.id)
-      const resp = await updateUserStatus(user.id, 'active')
+      setActionLoadingId(user.id);
+      const resp = await updateUserStatus(user.id, "active");
       if (resp?.data?.user) {
-        setUsers((prev) => prev.map((u) => (u.id === user.id ? resp.data.user : u)))
+        setUsers((prev) =>
+          prev.map((u) => (u.id === user.id ? resp.data.user : u))
+        );
       }
-      await Swal.fire('Activated', `${user.name} is now active.`, 'success')
+      await Swal.fire("Activated", `${user.name} is now active.`, "success");
     } catch (err) {
-      console.error('Failed to activate user', err)
-      setError(err instanceof Error ? err.message : 'Failed to activate user')
-      Swal.fire('Error', err instanceof Error ? err.message : 'Failed to activate user', 'error')
+      console.error("Failed to activate user", err);
+      setError(err instanceof Error ? err.message : "Failed to activate user");
+      Swal.fire(
+        "Error",
+        err instanceof Error ? err.message : "Failed to activate user",
+        "error"
+      );
     } finally {
-      setActionLoadingId(null)
+      setActionLoadingId(null);
     }
-  }
+  };
 
   const handleViewDetails = async (userId: string | number) => {
     try {
-      setActionLoadingId(userId)
-      const resp = await getUserWithFallback(userId)
+      setActionLoadingId(userId);
+      const resp = await getUserWithFallback(userId);
       if (resp?.data?.user) {
-        setSelectedUserDetail(resp.data.user as User)
-        setShowDetailModal(true)
+        setSelectedUserDetail(resp.data.user as User);
+        setShowDetailModal(true);
       } else {
-        Swal.fire('Not found', 'User details not available', 'info')
+        Swal.fire("Not found", "User details not available", "info");
       }
     } catch (err) {
-      console.error('Failed to fetch user details', err)
-      Swal.fire('Error', err instanceof Error ? err.message : 'Failed to fetch user details', 'error')
+      console.error("Failed to fetch user details", err);
+      Swal.fire(
+        "Error",
+        err instanceof Error ? err.message : "Failed to fetch user details",
+        "error"
+      );
     } finally {
-      setActionLoadingId(null)
+      setActionLoadingId(null);
     }
-  }
+  };
 
-  const perPage = 5
+  const perPage = 5;
 
   // Use React Query to fetch users with pagination and filters
-  const { data: uq, isLoading: qLoading, error: qError, refetch } = useQuery({
-    queryKey: ['adminUsers', { page: currentPage, perPage, search: searchTerm, role: roleFilter }],
-    queryFn: () => getUsersWithFallback(currentPage, perPage, searchTerm || undefined, roleFilter || undefined),
+  const {
+    data: uq,
+    isLoading: qLoading,
+    error: qError,
+    refetch,
+  } = useQuery({
+    queryKey: [
+      "adminUsers",
+      { page: currentPage, perPage, search: searchTerm, role: roleFilter },
+    ],
+    queryFn: () =>
+      getUsersWithFallback(
+        currentPage,
+        perPage,
+        searchTerm || undefined,
+        roleFilter || undefined
+      ),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-  })
+  });
 
   useEffect(() => {
-    const response = uq as any
+    const response = uq as any;
     if (response?.data) {
-      const normalizeUser = (u: any) => ({
-        id: u.id,
-        name: u.name || u.full_name || u.username || 'Unknown',
-        email: u.email || u.email_address || (u.contact && u.contact.email) || '',
-        status: u.status,
-        email_verified_at: u.email_verified_at,
-        created_at: u.created_at,
-        updated_at: u.updated_at,
-      }) as User
+      const normalizeUser = (u: any) =>
+        ({
+          id: u.id,
+          name: u.name || u.full_name || u.username || "Unknown",
+          email:
+            u.email || u.email_address || (u.contact && u.contact.email) || "",
+          status: u.status,
+          email_verified_at: u.email_verified_at,
+          created_at: u.created_at,
+          updated_at: u.updated_at,
+        } as User);
 
-      const items: User[] = (response.data.items || []).map(normalizeUser)
-      const missingEmailCount = items.filter((x) => !x.email).length
+      const items: User[] = (response.data.items || []).map(normalizeUser);
+      const missingEmailCount = items.filter((x) => !x.email).length;
       if (missingEmailCount > 0) {
-        console.info(`[UserManagement] ${missingEmailCount}/${items.length} users missing email (expected for some backends). Showing roles/bookings instead.`)
+        console.info(
+          `[UserManagement] ${missingEmailCount}/${items.length} users missing email (expected for some backends). Showing roles/bookings instead.`
+        );
       }
 
-      setUsers(items)
-      setTotalUsers(response.data.total ?? 0)
-      setTotalPages(response.data.last_page ?? 1)
+      setUsers(items);
+      setTotalUsers(response.data.total ?? 0);
+      setTotalPages(response.data.last_page ?? 1);
     }
 
-    setLoading(qLoading)
+    setLoading(qLoading);
     if (qError) {
-      console.error('Failed to load users:', qError)
-      setError((qError as any)?.message || 'Failed to load users')
+      console.error("Failed to load users:", qError);
+      setError((qError as any)?.message || "Failed to load users");
     }
-  }, [uq, qLoading, qError])
+  }, [uq, qLoading, qError]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value)
-    setCurrentPage(1) // Reset to first page when searching
-  }
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset to first page when searching
+  };
 
   const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setRoleFilter(e.target.value)
-    setCurrentPage(1)
-  }
+    setRoleFilter(e.target.value);
+    setCurrentPage(1);
+  };
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1)
+      setCurrentPage(currentPage + 1);
     }
-  }
+  };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage - 1)
+      setCurrentPage(currentPage - 1);
     }
-  }
+  };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("id-ID", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   const getAvatarColor = (index: number) => {
-    const colors = ['bg-orange-500', 'bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-red-500']
-    return colors[index % colors.length]
-  }
+    const colors = [
+      "bg-orange-500",
+      "bg-blue-500",
+      "bg-purple-500",
+      "bg-green-500",
+      "bg-red-500",
+    ];
+    return colors[index % colors.length];
+  };
 
   const getAvatarInitials = (name: string) =>
     name
-      .split(' ')
+      .split(" ")
       .map((n) => n[0])
-      .join('')
-      .toUpperCase()
+      .join("")
+      .toUpperCase();
 
   return (
     <div className="w-full">
       {/* Page Title */}
       <div className="mb-8">
-        <h2 className="text-4xl font-bold text-gray-900 mb-2">User Management</h2>
-        <p className="text-gray-600 font-medium">Kelola pengguna platform Anda</p>
+        <h2 className="text-4xl font-bold text-gray-900 mb-2">
+          User Management
+        </h2>
+        <p className="text-gray-600 font-medium">
+          Kelola pengguna platform Anda
+        </p>
       </div>
 
       {/* Error Message */}
@@ -227,7 +293,9 @@ export default function UserManagement() {
           </button>
 
           <div className="mt-3 md:mt-0">
-            <label className="sr-only" htmlFor="roleFilter">Role</label>
+            <label className="sr-only" htmlFor="roleFilter">
+              Role
+            </label>
             <select
               id="roleFilter"
               value={roleFilter}
@@ -263,7 +331,9 @@ export default function UserManagement() {
               <div className="inline-block">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
               </div>
-              <p className="text-gray-500 font-semibold mt-4">Loading users...</p>
+              <p className="text-gray-500 font-semibold mt-4">
+                Loading users...
+              </p>
             </div>
           ) : users && users.length > 0 ? (
             <table className="w-full">
@@ -288,31 +358,50 @@ export default function UserManagement() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {users.map((user, index) => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition-colors duration-150">
+                  <tr
+                    key={user.id}
+                    className="hover:bg-gray-50 transition-colors duration-150"
+                  >
                     <td className="px-6 lg:px-8 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 ${getAvatarColor(index)} rounded-full flex items-center justify-center text-white font-bold text-sm`}>
+                        <div
+                          className={`w-10 h-10 ${getAvatarColor(
+                            index
+                          )} rounded-full flex items-center justify-center text-white font-bold text-sm`}
+                        >
                           {getAvatarInitials(user.name)}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {user.name}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 lg:px-8 py-4">
                       {user.email ? (
-                        <span className="text-sm text-gray-700">{user.email}</span>
+                        <span className="text-sm text-gray-700">
+                          {user.email}
+                        </span>
                       ) : (
-                        <span className="text-sm text-gray-400 italic">No email</span>
+                        <span className="text-sm text-gray-400 italic">
+                          No email
+                        </span>
                       )}
                     </td>
                     <td className="px-6 lg:px-8 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${user.status === 'suspended' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                        {user.status || 'active'}
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          user.status === "suspended"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {user.status || "active"}
                       </span>
                     </td>
                     <td className="px-6 lg:px-8 py-4">
-                      {user.status === 'suspended' ? (
+                      {user.status === "suspended" ? (
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleActivate(user)}
@@ -320,9 +409,24 @@ export default function UserManagement() {
                             disabled={actionLoadingId === user.id}
                           >
                             {actionLoadingId === user.id ? (
-                              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                              <svg
+                                className="animate-spin h-4 w-4"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                  fill="none"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                ></path>
                               </svg>
                             ) : null}
                             <span>Activate</span>
@@ -342,9 +446,24 @@ export default function UserManagement() {
                             disabled={actionLoadingId === user.id}
                           >
                             {actionLoadingId === user.id ? (
-                              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                              <svg
+                                className="animate-spin h-4 w-4"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                  fill="none"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                ></path>
                               </svg>
                             ) : null}
                             <span>Suspend</span>
@@ -359,7 +478,9 @@ export default function UserManagement() {
                       )}
                     </td>
                     <td className="hidden md:table-cell px-6 lg:px-8 py-4">
-                      <span className="text-sm text-gray-600">{formatDate(user.created_at)}</span>
+                      <span className="text-sm text-gray-600">
+                        {formatDate(user.created_at)}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -370,8 +491,12 @@ export default function UserManagement() {
               <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
                 <Search size={32} className="text-gray-400" />
               </div>
-              <p className="text-gray-500 font-semibold">Tidak ada pengguna ditemukan</p>
-              <p className="text-sm text-gray-400 mt-1">Coba ubah pencarian Anda</p>
+              <p className="text-gray-500 font-semibold">
+                Tidak ada pengguna ditemukan
+              </p>
+              <p className="text-sm text-gray-400 mt-1">
+                Coba ubah pencarian Anda
+              </p>
             </div>
           )}
         </div>
@@ -380,7 +505,9 @@ export default function UserManagement() {
         {users.length > 0 && (
           <div className="px-6 lg:px-8 py-4 border-t border-gray-200 bg-linear-to-r from-gray-50 to-white flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Showing {(currentPage - 1) * perPage + 1} to {Math.min(currentPage * perPage, totalUsers)} of {totalUsers} users
+              Showing {(currentPage - 1) * perPage + 1} to{" "}
+              {Math.min(currentPage * perPage, totalUsers)} of {totalUsers}{" "}
+              users
             </div>
 
             <div className="flex gap-2">
@@ -395,20 +522,21 @@ export default function UserManagement() {
 
               <div className="flex items-center gap-2">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const page = currentPage > 3 ? currentPage - 2 + i : i + 1
-                  if (page > totalPages) return null
+                  const page = currentPage > 3 ? currentPage - 2 + i : i + 1;
+                  if (page > totalPages) return null;
                   return (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`w-10 h-10 rounded-lg font-medium transition-colors ${page === currentPage
-                        ? 'bg-orange-500 text-white'
-                        : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
+                      className={`w-10 h-10 rounded-lg font-medium transition-colors ${
+                        page === currentPage
+                          ? "bg-orange-500 text-white"
+                          : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                      }`}
                     >
                       {page}
                     </button>
-                  )
+                  );
                 })}
               </div>
 
@@ -436,8 +564,12 @@ export default function UserManagement() {
                   {selectedUserDetail.name?.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">{selectedUserDetail.name}</h2>
-                  <p className="text-sm text-gray-600">{selectedUserDetail.email}</p>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {selectedUserDetail.name}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {selectedUserDetail.email}
+                  </p>
                 </div>
               </div>
               <button
@@ -452,15 +584,19 @@ export default function UserManagement() {
             <div className="p-6 space-y-6">
               {/* Status Badge */}
               <div className="flex items-center gap-4">
-                <span className="text-sm font-semibold text-gray-700 w-24">Status:</span>
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  selectedUserDetail.status === 'active'
-                    ? 'bg-green-100 text-green-800'
-                    : selectedUserDetail.status === 'suspended'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {selectedUserDetail.status || 'Unknown'}
+                <span className="text-sm font-semibold text-gray-700 w-24">
+                  Status:
+                </span>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    selectedUserDetail.status === "active"
+                      ? "bg-green-100 text-green-800"
+                      : selectedUserDetail.status === "suspended"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
+                  {selectedUserDetail.status || "Unknown"}
                 </span>
               </div>
 
@@ -472,7 +608,9 @@ export default function UserManagement() {
                     <UserIcon size={16} className="text-blue-500" />
                     Nama
                   </label>
-                  <p className="text-gray-900 font-medium">{selectedUserDetail.name}</p>
+                  <p className="text-gray-900 font-medium">
+                    {selectedUserDetail.name}
+                  </p>
                 </div>
 
                 {/* Email */}
@@ -481,7 +619,9 @@ export default function UserManagement() {
                     <Mail size={16} className="text-blue-500" />
                     Email
                   </label>
-                  <p className="text-gray-900 font-medium break-all">{selectedUserDetail.email}</p>
+                  <p className="text-gray-900 font-medium break-all">
+                    {selectedUserDetail.email}
+                  </p>
                 </div>
               </div>
 
@@ -495,14 +635,16 @@ export default function UserManagement() {
                   </label>
                   <p className="text-gray-900">
                     {selectedUserDetail.created_at
-                      ? new Date(selectedUserDetail.created_at).toLocaleDateString('id-ID', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
+                      ? new Date(
+                          selectedUserDetail.created_at
+                        ).toLocaleDateString("id-ID", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
                         })
-                      : '—'}
+                      : "—"}
                   </p>
                 </div>
 
@@ -514,36 +656,49 @@ export default function UserManagement() {
                   </label>
                   <p className="text-gray-900">
                     {selectedUserDetail.updated_at
-                      ? new Date(selectedUserDetail.updated_at).toLocaleDateString('id-ID', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
+                      ? new Date(
+                          selectedUserDetail.updated_at
+                        ).toLocaleDateString("id-ID", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
                         })
-                      : '—'}
+                      : "—"}
                   </p>
                 </div>
               </div>
 
               {/* Stats Section */}
-              {((selectedUserDetail as any).bookings_count !== undefined || (selectedUserDetail as any).checkouts_count !== undefined) && (
+              {((selectedUserDetail as any).bookings_count !== undefined ||
+                (selectedUserDetail as any).checkouts_count !== undefined) && (
                 <div className="bg-linear-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100">
                   <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                     <Badge size={18} className="text-blue-600" />
                     Statistik
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
-                    {(selectedUserDetail as any).bookings_count !== undefined && (
+                    {(selectedUserDetail as any).bookings_count !==
+                      undefined && (
                       <div className="bg-white p-3 rounded-lg border border-blue-200">
-                        <p className="text-xs text-gray-600 font-semibold uppercase">Total Booking</p>
-                        <p className="text-2xl font-bold text-blue-600">{(selectedUserDetail as any).bookings_count}</p>
+                        <p className="text-xs text-gray-600 font-semibold uppercase">
+                          Total Booking
+                        </p>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {(selectedUserDetail as any).bookings_count}
+                        </p>
                       </div>
                     )}
-                    {(selectedUserDetail as any).checkouts_count !== undefined && (
+                    {(selectedUserDetail as any).checkouts_count !==
+                      undefined && (
                       <div className="bg-white p-3 rounded-lg border border-indigo-200">
-                        <p className="text-xs text-gray-600 font-semibold uppercase">Total Checkout</p>
-                        <p className="text-2xl font-bold text-indigo-600">{(selectedUserDetail as any).checkouts_count}</p>
+                        <p className="text-xs text-gray-600 font-semibold uppercase">
+                          Total Checkout
+                        </p>
+                        <p className="text-2xl font-bold text-indigo-600">
+                          {(selectedUserDetail as any).checkouts_count}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -551,28 +706,42 @@ export default function UserManagement() {
               )}
 
               {/* Roles Section */}
-              {Array.isArray((selectedUserDetail as any).roles) && (selectedUserDetail as any).roles.length > 0 && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Roles</label>
-                  <div className="flex flex-wrap gap-2">
-                    {(selectedUserDetail as any).roles.map((role: any, idx: number) => (
-                      <span
-                        key={idx}
-                        className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
-                      >
-                        {role.name || role}
-                      </span>
-                    ))}
+              {Array.isArray((selectedUserDetail as any).roles) &&
+                (selectedUserDetail as any).roles.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Roles
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {(selectedUserDetail as any).roles.map(
+                        (role: any, idx: number) => (
+                          <span
+                            key={idx}
+                            className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+                          >
+                            {role.name || role}
+                          </span>
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Email Verification Status */}
               {selectedUserDetail.email_verified_at !== undefined && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className={`w-3 h-3 rounded-full ${selectedUserDetail.email_verified_at ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      selectedUserDetail.email_verified_at
+                        ? "bg-green-500"
+                        : "bg-gray-400"
+                    }`}
+                  ></div>
                   <span className="text-sm text-gray-700">
-                    Email {selectedUserDetail.email_verified_at ? 'Terverifikasi' : 'Belum Terverifikasi'}
+                    Email{" "}
+                    {selectedUserDetail.email_verified_at
+                      ? "Terverifikasi"
+                      : "Belum Terverifikasi"}
                   </span>
                 </div>
               )}
@@ -591,5 +760,5 @@ export default function UserManagement() {
         </div>
       )}
     </div>
-  )
+  );
 }
