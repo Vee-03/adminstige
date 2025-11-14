@@ -191,7 +191,7 @@ export default function DestinationPage() {
             className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-105"
           >
             {/* Image */}
-            <div className="h-48 bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
+            <div className="h-48 bg-linear-to-br from-orange-400 to-orange-500 flex items-center justify-center">
               {destination.image_urls && destination.image_urls.length > 0 ? (
                 <img src={destination.image_urls[0]} alt={destination.name} className="w-full h-full object-cover" />
               ) : (
@@ -272,7 +272,7 @@ export default function DestinationPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-6 flex items-center justify-between text-white">
+            <div className="sticky top-0 bg-linear-to-r from-orange-500 to-orange-600 px-6 py-6 flex items-center justify-between text-white">
               <h3 className="text-2xl font-bold">{isEditing ? 'Edit Destination' : 'Add New Destination'}</h3>
               <button onClick={handleCloseModal} className="hover:bg-white/20 p-2 rounded-lg transition">
                 <X size={24} />
