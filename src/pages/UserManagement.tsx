@@ -430,9 +430,9 @@ export default function UserManagement() {
         <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 bg-linear-to-r from-blue-50 to-indigo-50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
+                <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
                   {selectedUserDetail.name?.charAt(0).toUpperCase()}
                 </div>
                 <div>
@@ -468,7 +468,7 @@ export default function UserManagement() {
               <div className="grid grid-cols-2 gap-6">
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                     <UserIcon size={16} className="text-blue-500" />
                     Nama
                   </label>
@@ -477,7 +477,7 @@ export default function UserManagement() {
 
                 {/* Email */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                     <Mail size={16} className="text-blue-500" />
                     Email
                   </label>
@@ -489,7 +489,7 @@ export default function UserManagement() {
               <div className="grid grid-cols-2 gap-6">
                 {/* Created At */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                     <Calendar size={16} className="text-blue-500" />
                     Dibuat
                   </label>
@@ -508,7 +508,7 @@ export default function UserManagement() {
 
                 {/* Updated At */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                     <Calendar size={16} className="text-blue-500" />
                     Diperbarui
                   </label>
@@ -528,7 +528,7 @@ export default function UserManagement() {
 
               {/* Stats Section */}
               {((selectedUserDetail as any).bookings_count !== undefined || (selectedUserDetail as any).checkouts_count !== undefined) && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100">
+                <div className="bg-linear-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100">
                   <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                     <Badge size={18} className="text-blue-600" />
                     Statistik
