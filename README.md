@@ -1,161 +1,135 @@
-# React + TypeScript + Vite
+## Adminstige — Developer Guide
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the Admin dashboard for StigeHiling built with React, Vite, and TypeScript. It uses React Query for data fetching, SweetAlert2 for modals, and Tailwind CSS for styling.
 
-Currently, two official plugins are available:
+### Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- React + TypeScript + Vite
+- Tailwind CSS v4
+- @tanstack/react-query (+ Devtools)
+- SweetAlert2
+- lucide-react icons
 
-## React Compiler
+### Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Install deps
 
-## Expanding the ESLint configuration
+```bash
+npm install
+```
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+2. Configure environment (see Env below)
+3. Run dev server
 
-```js
-export default defineConfig([
-  # Adminstige — Admin Dashboard (React + TypeScript + Vite)
+```bash
+npm run dev
+```
 
-  This repository contains the Admin UI for the Adminstige project, built with React 19, TypeScript and Vite.
+4. Open the URL Vite prints (usually http://localhost:5173)
 
-  The app is a single-page admin dashboard to manage destinations, users and checkouts. It uses the backend API under `/admin/*` endpoints (configurable via an environment variable).
+### Scripts
 
-  This README focuses on developer setup, conventions, and a few implementation notes to help contributors get started quickly.
+- `npm run dev` — start Vite dev server
+- `npm run build` — type-check then build production assets
+- `npm run preview` — serve the production build locally
+- `npm run lint` — run ESLint on the repo
 
-  ## Tech stack
+Handy one-offs:
 
-  - React 19 + TypeScript
-  - Vite (dev server / build)
-  - TanStack React Query (v5) for data fetching, caching and invalidation
-  - Chart.js + react-chartjs-2 for charts
-  - TailwindCSS for styling
-  - SweetAlert2 for confirmation / details modal UI
+```bash
+# Type-check only (no output files)
+npx tsc --noEmit
 
-  ## Quick start (development)
+# Lint only pages (fast iteration)
+npx eslint src/pages/*
+```
 
-  Prerequisites: Node.js (18+ recommended) and npm/yarn.
+### Env
 
-  1. Install dependencies
+Create a `.env` file at project root if needed:
 
-  ```bash
-  npm install
-  ```
+```bash
+cp .env.example .env  # if you have one
+```
 
-  2. Configure environment (optional)
+Set the API base (Laravel backend):
 
-  Create a `.env` file or set environment variables. By default the app will use `http://localhost:8000/api/v1` for API calls. To override, set:
+```bash
+echo 'VITE_API_URL=http://localhost:8000/api/v1' >> .env
+```
 
-  ```
-  VITE_API_URL=https://your-api.example.com/api/v1
-  ```
+### Project Structure (trimmed)
 
-  3. Run the dev server
+```
+src/
+	pages/
+		AdminDashboard.tsx
+		UserManagement.tsx
+		PartnerManagement.tsx
+		Destination.tsx
+	utils/
+		api.ts            # apiCall wrapper, endpoints, errors
+		userAPI.ts        # users CRUD, status updates, mock fallback
+		destinationAPI.ts # destinations CRUD
+	components/
+		...
+```
 
-  ```bash
-  npm run dev
-  ```
+### API & Auth
 
-  Open http://localhost:5173/ (Vite will print the actual URL).
+- Base URL controlled by `VITE_API_URL` in `.env`.
+- Requests use `Bearer` token from `localStorage.getItem('admin_token')`.
+- If the backend returns 401/Unauthenticated, `admin_token` is cleared so the UI can re-login.
+- Key routes expected by the UI:
+  - `GET /admin/users` (with filters/search/pagination)
+  - `GET /admin/users/:id`
+  - `DELETE /admin/users/:id`
+  - `PATCH /admin/users/:id/status` (activate/suspend)
+  - `GET/POST/PATCH/DELETE /admin/destinations`
 
-  4. Build for production
+When the backend is unreachable, many calls use a mock fallback to keep the UI usable for demos and local development (see `userAPI.ts`).
 
-  ```bash
-  npm run build
-  npm run preview
-  ```
+### Data Fetching
 
-  ## Useful scripts
+- React Query is used for server state: caching, loading/error states, and refetching.
+- Pages usually define `queryKey` with pagination, search, and filter params to scope caches.
+- Prefer updating list state optimistically after mutations (e.g., delete, suspend) to keep UX snappy.
 
-  - npm run dev — run Vite dev server with HMR
-  - npm run build — build production assets (also runs TypeScript build step)
-  - npm run preview — preview production build locally
-  - npm run lint — run ESLint across the repo
+### UI Patterns
 
-  ## Environment and API
+- SweetAlert2 is used for confirmations and detail popups.
+  - Deletion confirmations use `icon: 'warning'`, cancel + confirm buttons, and success/error toasts.
+  - Detail views (e.g., Users/Partners) render styled HTML in SweetAlert while keeping the original design semantics.
+- Icons: `lucide-react`.
+- Styling: Tailwind v4 utilities.
+  - Note: Tailwind v4 prefers `bg-linear-to-r`/`bg-linear-to-br` over the old `bg-gradient-to-*` form. Follow existing patterns to satisfy linters.
 
-  - The frontend calls the API using the base URL set by `VITE_API_URL` (defaults to `http://localhost:8000/api/v1` if not provided).
-  - API endpoint constants are defined in `src/utils/api.ts` as `API_ENDPOINTS`. Important admin endpoints used by the app include:
-    - `/admin/login`, `/admin/logout`
-    - `/admin/destinations`
-    - `/admin/checkouts`
-    - `/admin/users`
-    - `/admin/dashboard`
+### Conventions
 
-  ## Authentication token
+- TypeScript: prefer explicit interfaces for API shapes in `utils/*API.ts`.
+- Avoid inline comments in code unless necessary (project style).
+- Keep changes minimal and focused; don’t reformat unrelated files.
 
-  - When an admin logs in, the token is stored in localStorage under the key `admin_token`.
-  - `src/utils/api.ts` reads this token and includes it as a `Bearer` header for API calls.
-  - The application (in `src/App.tsx`) initializes logged-in state from `localStorage` and listens to the `storage` event so token changes in other tabs are reflected.
+### Troubleshooting
 
-  If you need cookie-based auth or different token handling, update `apiCall` in `src/utils/api.ts` and `AdminLogin.tsx`.
+- “Failed to fetch” / Network errors:
+  - Ensure backend is running and `VITE_API_URL` is correct.
+  - Mock fallback logs to console when it’s used.
+- 401/Unauthenticated:
+  - Token is cleared; log in again to refresh `admin_token`.
+- ESLint complaints about gradient classes:
+  - Replace `bg-gradient-to-*` with `bg-linear-to-*` as suggested.
 
-  ## Data fetching and caching (React Query)
+### Useful Files
 
-  - The app uses TanStack React Query (v5) to centralize fetching and caching. The global `QueryClient` is created in `src/main.tsx` and wrapped around the app.
-  - Default query options (staleTime, retry behavior) are configured there. Queries in pages use `useQuery` and expose `refetch()` buttons for manual refresh.
-  - Dev tip: Use React Query Devtools (package is installed) during development for cache inspection — add the Devtools component to `src/main.tsx` inside the `QueryClientProvider`.
+- `src/utils/api.ts` — Fetch wrapper, endpoints, and error normalization.
+- `src/utils/userAPI.ts` — Users list/detail/status, create, delete, with mock fallback.
+- `src/pages/UserManagement.tsx` — Search, filters, detail via SweetAlert, actions.
+- `src/pages/PartnerManagement.tsx` — Partner list, create, activate/suspend, delete, detail via SweetAlert.
 
-  ## Where to normalize API shapes
+### Commit & PR
 
-  - The backend can return slightly different shapes across environments (e.g., `data.items` vs an array directly, numeric strings vs numbers, nested objects). To reduce copy-paste normalization across components, the project contains helper modules in `src/utils`:
-    - `src/utils/api.ts` — low-level fetch wrapper and response types
-    - `src/utils/destinationAPI.ts` — destination helpers and `normalizeDestination`
-    - `src/utils/userAPI.ts` — users list/detail helpers + fallback mocks
-    - `src/utils/checkoutAPI.ts` — checkout shapes and helpers
+- See `GIT_COMMIT_GUIDE.md` for conventions.
+- Keep PRs focused and reference related docs: `API_CONTRACT.md`, `API_IMPLEMENTATION_MAPPING.md`, etc.
 
-  When adding a new component that consumes an API, prefer adding a typed helper in `src/utils/*` that returns consistent UI-friendly shapes. This reduces `any` usage and ESLint/type churn.
-
-  ## Linting & Type checking
-
-  - Run TypeScript checks:
-
-  ```bash
-  npx tsc --noEmit
-  ```
-
-  - Run ESLint:
-
-  ```bash
-  npx eslint .
-  ```
-
-  We intentionally keep lint rules strict (no `any`) where practical. During migration you may see temporary `/* eslint-disable @typescript-eslint/no-explicit-any */` comments in pages — prefer to remove them by moving normalization into `src/utils` and adding proper types.
-
-  ## Charts and Chart.js plugins
-
-  - Chart.js (v4) requires certain plugins to be registered explicitly. The dashboard registers the `Filler` plugin to avoid runtime errors when using `fill` in a line chart — see `src/pages/DashboardContent.tsx`.
-
-  If you add new charts, remember to import and register the required chart elements/plugins in the component or in a shared module.
-
-  ## Common troubleshooting
-
-  - CORS errors / network failures:
-    - Ensure `VITE_API_URL` matches the backend host and the backend allows requests from the dev origin.
-    - The code uses a `tryApiWithMockFallback` pattern in some utils to provide local mock data when the backend is unavailable — useful for local UI work.
-
-  - Token not persisting across refresh:
-    - The login flow stores `admin_token` in `localStorage`. If you still need sessions, consider switching to cookies and set `useCredentials` in `apiCall`.
-
-  - ESLint complains about `any`:
-    - Move normalization code into `src/utils/*` and add explicit interfaces (examples are present in `checkoutAPI.ts`, `destinationAPI.ts`, and `userAPI.ts`).
-
-  ## Contributing and commits
-
-  - Branch naming: feature/*, fix/*, chore/*
-  - Follow conventional commits where possible. There is a `GIT_COMMIT_GUIDE.md` in the repo — please read before pushing.
-
-  ## Next steps / suggestions
-
-  - Remove the temporary `no-explicit-any` disables by centralizing normalization into typed helpers.
-  - Add React Query Devtools in `src/main.tsx` for easier debugging.
-  - Add a small e2e smoke test (Cypress/playwright) to verify critical flows if you plan to expand the app.
-
-  If you'd like, I can (pick one):
-  - Add React Query Devtools to the dev layout now.
-  - Move the checkout normalization into `src/utils/checkoutAPI.ts` and type it properly.
-  - Create a short CONTRIBUTING.md with code-style and PR/branch rules.
-
-  Thanks — open an issue or assign me a task for any of the next steps and I will implement it.
+That’s it — run `npm run dev`, set your `.env`, and you’re good to go.
