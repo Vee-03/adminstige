@@ -1,16 +1,6 @@
 import { useEffect, useState } from "react";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Mail,
-  Calendar,
-  Badge,
-  Building2,
-  Phone,
-  X,
-} from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import { useQuery } from "@tanstack/react-query";
@@ -71,9 +61,7 @@ export default function PartnerManagement() {
   const [actionLoadingId, setActionLoadingId] = useState<
     string | number | null
   >(null);
-  const [selectedPartnerDetail, setSelectedPartnerDetail] =
-    useState<Partner | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  // Detail shown via SweetAlert2 (no in-page modal)
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -351,8 +339,7 @@ export default function PartnerManagement() {
           (Array.isArray(u.roles) &&
             u.roles.some((r: any) => r.name === "partner")),
       };
-      setSelectedPartnerDetail(mapped);
-      setShowDetailModal(true);
+      showPartnerDetailAlert(mapped);
     } catch (err) {
       console.error("Failed to fetch partner details", err);
       Swal.fire(
@@ -363,6 +350,133 @@ export default function PartnerManagement() {
     } finally {
       setActionLoadingId(null);
     }
+  };
+
+  const showPartnerDetailAlert = (partner: Partner) => {
+    const createdAt = partner.created_at
+      ? new Date(partner.created_at).toLocaleDateString("id-ID", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—";
+    const updatedAt = partner.updated_at
+      ? new Date(partner.updated_at).toLocaleDateString("id-ID", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : null;
+
+    const statusStyle = (s: string) => {
+      switch (s) {
+        case "active":
+          return "background-color:#dcfce7;color:#166534";
+        case "suspended":
+          return "background-color:#fee2e2;color:#991b1b";
+        case "inactive":
+          return "background-color:#f3f4f6;color:#374151";
+        default:
+          return "background-color:#f3f4f6;color:#374151";
+      }
+    };
+
+    let html = `
+    <div style="text-align:left;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid #e5e7eb;background:linear-gradient(to right,#faf5ff,#eef2ff);border-top-left-radius:12px;border-top-right-radius:12px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:48px;height:48px;background:linear-gradient(to bottom right,#7c3aed,#4f46e5);border-radius:9999px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px;">
+            ${(partner.company_name || partner.name).charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div style="font-size:18px;font-weight:700;color:#111827;">${
+              partner.company_name || partner.name
+            }</div>
+            <div style="font-size:12px;color:#6b7280;">${partner.name}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:16px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:12px;font-weight:600;color:#374151;width:72px;">Status:</span>
+        <span style="padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600;${statusStyle(
+          partner.status
+        )}">${
+      partner.status === "active"
+        ? "Aktif"
+        : partner.status === "suspended"
+        ? "Suspended"
+        : "Tidak Aktif"
+    }</span>
+        ${
+          partner.verified
+            ? `<span style="padding:4px 12px;border-radius:9999px;background:#dbeafe;color:#1e3a8a;font-size:12px;font-weight:600;">✓ Terverifikasi</span>`
+            : ""
+        }
+      </div>
+
+      <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        ${
+          partner.phone
+            ? `<div><div style=\"font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;\">Telepon</div><div style=\"color:#111827;font-weight:500;\">${partner.phone}</div></div>`
+            : ""
+        }
+      </div>
+
+      <div style="background:linear-gradient(to right,#faf5ff,#eef2ff);padding:16px;border-radius:8px;border:1px solid #e9d5ff;margin:0 16px 16px 16px;">
+        <div style="font-weight:600;color:#111827;margin-bottom:12px;">Informasi Perusahaan</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;">
+          ${
+            partner.address
+              ? `<div><div style=\"color:#6b7280;font-weight:600;\">Alamat</div><div style=\"color:#111827;\">${partner.address}</div></div>`
+              : ""
+          }
+          ${
+            partner.city || partner.province
+              ? `<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px;\">${
+                  partner.city
+                    ? `<div><div style=\"color:#6b7280;font-weight:600;\">Kota</div><div style=\"color:#111827;\">${partner.city}</div></div>`
+                    : ""
+                }${
+                  partner.province
+                    ? `<div><div style=\"color:#6b7280;font-weight:600;\">Provinsi</div><div style=\"color:#111827;\">${partner.province}</div></div>`
+                    : ""
+                }</div>`
+              : ""
+          }
+        </div>
+      </div>
+
+      ${
+        typeof partner.businesses_count === "number"
+          ? `<div style=\"background:linear-gradient(to right,#faf5ff,#eef2ff);padding:16px;border-radius:8px;border:1px solid #e9d5ff;margin:0 16px 16px 16px;\"><div style=\"font-weight:600;color:#111827;margin-bottom:8px;\">Statistik</div><div style=\"background:#fff;padding:12px;border-radius:8px;border:1px solid #e9d5ff;\"><div style=\"font-size:10px;color:#4b5563;font-weight:700;text-transform:uppercase;\">Total Bisnis Terdaftar</div><div style=\"font-size:28px;font-weight:800;color:#7c3aed;\">${partner.businesses_count}</div></div></div>`
+          : ""
+      }
+
+      <div style="padding:0 16px 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">Terdaftar</div>
+          <div style="color:#111827;">${createdAt}</div>
+        </div>
+        ${
+          updatedAt
+            ? `<div><div style=\"font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;\">Diperbarui</div><div style=\"color:#111827;\">${updatedAt}</div></div>`
+            : ""
+        }
+      </div>
+    </div>`;
+
+    Swal.fire({
+      title: partner.company_name || partner.name,
+      html,
+      width: 700,
+      confirmButtonText: "Tutup",
+      confirmButtonColor: "#7c3aed",
+    });
   };
 
   // Create partner
@@ -772,199 +886,7 @@ export default function PartnerManagement() {
         </div>
       )}
 
-      {/* Partner Detail Modal */}
-      {showDetailModal && selectedPartnerDetail && (
-        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  {selectedPartnerDetail.company_name
-                    ?.charAt(0)
-                    .toUpperCase() ||
-                    selectedPartnerDetail.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {selectedPartnerDetail.company_name ||
-                      selectedPartnerDetail.name}
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    {selectedPartnerDetail.name}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                <X size={20} className="text-gray-600" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6 space-y-6">
-              {/* Status Badge */}
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-semibold text-gray-700 w-24">
-                  Status:
-                </span>
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(
-                    selectedPartnerDetail.status
-                  )}`}
-                >
-                  {getStatusLabel(selectedPartnerDetail.status)}
-                </span>
-                {selectedPartnerDetail.verified && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold flex items-center gap-1">
-                    ✓ Terverifikasi
-                  </span>
-                )}
-              </div>
-
-              {/* Contact Info */}
-              <div className="grid grid-cols-2 gap-6">
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Mail size={16} className="text-purple-500" />
-                    Email
-                  </label>
-                  <p className="text-gray-900 font-medium break-all">
-                    {selectedPartnerDetail.email}
-                  </p>
-                </div>
-
-                {/* Phone */}
-                {selectedPartnerDetail.phone && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <Phone size={16} className="text-purple-500" />
-                      Telepon
-                    </label>
-                    <p className="text-gray-900 font-medium">
-                      {selectedPartnerDetail.phone}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Company & Location Info */}
-              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-4 rounded-lg border border-purple-100">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Building2 size={18} className="text-purple-600" />
-                  Informasi Perusahaan
-                </h3>
-                <div className="space-y-3 text-sm">
-                  {selectedPartnerDetail.address && (
-                    <div>
-                      <p className="text-gray-600 font-semibold">Alamat</p>
-                      <p className="text-gray-900">
-                        {selectedPartnerDetail.address}
-                      </p>
-                    </div>
-                  )}
-                  {selectedPartnerDetail.city && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-gray-600 font-semibold">Kota</p>
-                        <p className="text-gray-900">
-                          {selectedPartnerDetail.city}
-                        </p>
-                      </div>
-                      {selectedPartnerDetail.province && (
-                        <div>
-                          <p className="text-gray-600 font-semibold">
-                            Provinsi
-                          </p>
-                          <p className="text-gray-900">
-                            {selectedPartnerDetail.province}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Stats Section */}
-              {selectedPartnerDetail.businesses_count !== undefined && (
-                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-4 rounded-lg border border-purple-100">
-                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Badge size={18} className="text-purple-600" />
-                    Statistik
-                  </h3>
-                  <div className="bg-white p-4 rounded-lg border border-purple-200">
-                    <p className="text-xs text-gray-600 font-semibold uppercase">
-                      Total Bisnis Terdaftar
-                    </p>
-                    <p className="text-3xl font-bold text-purple-600">
-                      {selectedPartnerDetail.businesses_count}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-6">
-                {/* Created At */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Calendar size={16} className="text-purple-500" />
-                    Terdaftar
-                  </label>
-                  <p className="text-gray-900">
-                    {selectedPartnerDetail.created_at
-                      ? new Date(
-                          selectedPartnerDetail.created_at
-                        ).toLocaleDateString("id-ID", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                  </p>
-                </div>
-
-                {/* Updated At */}
-                {selectedPartnerDetail.updated_at && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <Calendar size={16} className="text-purple-500" />
-                      Diperbarui
-                    </label>
-                    <p className="text-gray-900">
-                      {new Date(
-                        selectedPartnerDetail.updated_at
-                      ).toLocaleDateString("id-ID", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex gap-3 p-6 border-t border-gray-200 bg-gray-50">
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="flex-1 px-4 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Detail ditampilkan via SweetAlert2 */}
     </div>
   );
 }
