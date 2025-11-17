@@ -1,5 +1,6 @@
 import { apiCall, API_ENDPOINTS, ApiError } from "./api";
 import type { ApiResponse } from "./api";
+import { deleteMockDestination } from "./mockAPI";
 
 // User Interfaces
 export interface User {
@@ -329,6 +330,34 @@ export async function createUserWithFallback(
           message: "User created successfully.",
           user,
         },
+      };
+    },
+    isNetworkError
+  );
+}
+
+// Delete user - DELETE /admin/users/{id}
+export async function deleteUser(
+  userId: string | number
+): Promise<ApiResponse<any>> {
+  const endpoint = API_ENDPOINTS.DELETE_USER(String(userId));
+  return apiCall(endpoint, { method: "DELETE" });
+}
+
+export async function deleteUserWithFallback(
+  userId: string | number
+): Promise<ApiResponse<any>> {
+  return tryApiWithMockFallback(
+    () => deleteUser(userId),
+    async () => {
+      const idx = mockUsers.findIndex((u) => u.id === userId);
+      if (idx !== -1) {
+        mockUsers.splice(idx, 1);
+      }
+      return {
+        status: 200,
+        message: "User deleted (mock)",
+        data: null as any,
       };
     },
     isNetworkError

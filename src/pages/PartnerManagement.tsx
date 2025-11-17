@@ -19,6 +19,7 @@ import {
   updateUserStatus,
   getUserWithFallback,
   createUserWithFallback,
+  deleteUserWithFallback,
 } from "../utils/userAPI";
 
 // Defensive helper: try multiple common locations for phone numbers in API responses
@@ -284,6 +285,37 @@ export default function PartnerManagement() {
       Swal.fire(
         "Error",
         err instanceof Error ? err.message : "Failed to activate partner",
+        "error"
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleDeletePartner = async (partner: Partner) => {
+    const ask = await Swal.fire({
+      title: `Hapus ${partner.company_name || partner.name}?`,
+      text: "Tindakan ini tidak dapat dibatalkan.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Hapus",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#dc2626",
+      reverseButtons: true,
+    });
+
+    if (!ask.isConfirmed) return;
+
+    try {
+      setActionLoadingId(partner.id);
+      await deleteUserWithFallback(partner.id);
+      setPartners((prev) => prev.filter((p) => p.id !== partner.id));
+      setTotalPartners((prev) => Math.max(0, prev - 1));
+      Swal.fire("Dihapus", "Mitra berhasil dihapus.", "success");
+    } catch (err) {
+      Swal.fire(
+        "Error",
+        err instanceof Error ? err.message : "Gagal menghapus mitra",
         "error"
       );
     } finally {
@@ -563,6 +595,13 @@ export default function PartnerManagement() {
                               : "Aktifkan"}
                           </button>
                         )}
+                        <button
+                          onClick={() => handleDeletePartner(partner)}
+                          disabled={actionLoadingId === partner.id}
+                          className="px-3 py-1 text-sm bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                        >
+                          Hapus
+                        </button>
                       </div>
                     </td>
                   </tr>

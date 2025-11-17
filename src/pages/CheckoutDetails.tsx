@@ -21,7 +21,7 @@ export default function CheckoutDetails({ checkout, onBack }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
       {/* Header dengan Back Button */}
       <div className="mb-6 flex items-center gap-3">
         <button

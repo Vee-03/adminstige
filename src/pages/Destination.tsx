@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 import {
   Edit,
   Trash2,
@@ -236,7 +238,18 @@ export default function DestinationPage() {
   const handleDelete = async (uuid: string | undefined) => {
     if (!uuid) return;
 
-    if (!confirm("Apakah Anda yakin ingin menghapus destination ini?")) {
+    const result = await Swal.fire({
+      title: "Apakah Anda yakin?",
+      text: "Destinasi yang dihapus tidak dapat dikembalikan.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Hapus",
+      cancelButtonText: "Batal",
+    });
+
+    if (!result.isConfirmed) {
       return;
     }
 
@@ -244,10 +257,12 @@ export default function DestinationPage() {
       setDeleteLoading(uuid);
       await deleteDestination(uuid);
       setDestinations(destinations.filter((dest) => dest.uuid !== uuid));
+      Swal.fire("Dihapus!", "Destinasi berhasil dihapus.", "success");
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Gagal menghapus destinasi";
       setError(errorMessage);
+      Swal.fire("Error!", errorMessage, "error");
       console.error("Delete error:", err);
     } finally {
       setDeleteLoading(null);

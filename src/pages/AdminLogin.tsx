@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { adminLogin } from "../utils/authAPI";
 
 interface AdminLoginProps {
   onLogin: () => void;
@@ -24,39 +25,17 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
     setIsLoading(true);
 
     try {
-      // Try real API first
-      const apiUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
-      const response = await fetch(`${apiUrl}/admin/login`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Try multiple common token locations
-        const token =
-          data?.data?.token ||
-          data?.token ||
-          data?.access_token ||
-          data?.meta?.token;
-        if (token) {
-          localStorage.setItem("admin_token", token);
-          onLogin();
-        } else {
-          console.error(
-            "[AdminLogin] Login response did not include a token",
-            data
-          );
-          setError(
-            "Login berhasil tetapi token otentikasi tidak ditemukan pada respons."
-          );
-        }
+      // Use centralized adminLogin helper with fallback
+      const response = await adminLogin(email, password);
+      const token = response?.data?.token;
+
+      if (token) {
+        localStorage.setItem("admin_token", token);
+        onLogin();
       } else {
-        setError("Email atau password salahv1");
+        setError(
+          "Login berhasil tetapi token otentikasi tidak ditemukan pada respons."
+        );
       }
     } catch (err) {
       // Fallback to mock login if API is not available
@@ -67,8 +46,7 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
         localStorage.setItem("admin_token", "mock_token_" + Date.now());
         onLogin();
       } else {
-        setError("Email atau password salahv2");
-        // debugresponse
+        setError("Email atau password salah");
       }
     } finally {
       setIsLoading(false);
