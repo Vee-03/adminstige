@@ -39,10 +39,10 @@ export default function CheckoutDetails({ checkout, onBack }: Props) {
       {/* Main Card */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         {/* Header dengan Status */}
-        <div className={`bg-gradient-to-r ${getStatusColor(checkout.status)} p-6 border-b border-gray-200`}>
+        <div className={`bg-linear-to-r ${getStatusColor(checkout.status)} p-6 border-b border-gray-200`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center text-white">
+              <div className="w-16 h-16 bg-linear-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center text-white">
                 <ShoppingBag size={24} />
               </div>
               <div>
@@ -84,7 +84,7 @@ export default function CheckoutDetails({ checkout, onBack }: Props) {
           {/* Row 2: Price & Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Total Price */}
-            <div className="bg-gradient-to-br from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200">
+            <div className="bg-linear-to-br from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
                   <DollarSign size={18} className="text-orange-600" />
@@ -95,7 +95,7 @@ export default function CheckoutDetails({ checkout, onBack }: Props) {
             </div>
 
             {/* Payment Status */}
-            <div className={`bg-gradient-to-br ${checkout.status === 'paid' ? 'from-green-50 to-emerald-50 border-green-200' : 'from-red-50 to-rose-50 border-red-200'} p-6 rounded-xl border`}>
+            <div className={`bg-linear-to-br ${checkout.status === 'paid' ? 'from-green-50 to-emerald-50 border-green-200' : 'from-red-50 to-rose-50 border-red-200'} p-6 rounded-xl border`}>
               <div className="flex items-center gap-3 mb-3">
                 <div className={`w-10 h-10 ${checkout.status === 'paid' ? 'bg-green-100' : 'bg-red-100'} rounded-lg flex items-center justify-center`}>
                   <CreditCard size={18} className={checkout.status === 'paid' ? 'text-green-600' : 'text-red-600'} />
@@ -112,7 +112,7 @@ export default function CheckoutDetails({ checkout, onBack }: Props) {
           </div>
 
           {/* Row 3: Date Info */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+          <div className="bg-linear-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Calendar size={18} className="text-blue-600" />
@@ -144,7 +144,7 @@ export default function CheckoutDetails({ checkout, onBack }: Props) {
           </div>
 
           {/* Summary Box */}
-          <div className="bg-gradient-to-br from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200">
+          <div className="bg-linear-to-br from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200">
             <h3 className="font-semibold mb-4 flex items-center gap-2 text-gray-900">
               <ShoppingBag size={18} className="text-orange-600" />
               Ringkasan Transaksi

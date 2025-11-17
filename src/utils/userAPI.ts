@@ -1,6 +1,6 @@
 import { apiCall, API_ENDPOINTS, ApiError } from "./api";
 import type { ApiResponse } from "./api";
-import { deleteMockDestination } from "./mockAPI";
+// import { deleteMockDestination } from "./mockAPI";
 
 // User Interfaces
 export interface User {

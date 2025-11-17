@@ -550,7 +550,7 @@ export default function PartnerManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Manajemen Mitra</h1>
@@ -647,7 +647,7 @@ export default function PartnerManagement() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                        <div className="w-10 h-10 bg-linear-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                           {partner.company_name?.charAt(0).toUpperCase() ||
                             partner.name.charAt(0).toUpperCase()}
                         </div>
@@ -759,7 +759,7 @@ export default function PartnerManagement() {
         <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
+            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 bg-linear-to-r from-purple-50 to-indigo-50">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
                   Buat Mitra Baru
@@ -876,7 +876,7 @@ export default function PartnerManagement() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all shadow-md"
+                  className="flex-1 px-6 py-3 bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all shadow-md"
                 >
                   Buat Mitra
                 </button>
